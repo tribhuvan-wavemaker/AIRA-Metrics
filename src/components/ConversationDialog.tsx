@@ -481,7 +481,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                               <div className="mb-3 bg-gray-50 rounded-lg p-2">
                                                 <h5 className="text-xs font-medium text-gray-700 mb-1">Tool Inputs:</h5>
                                                 <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
-                                                  {typeof toolCall.response_tool_inputs === 'string' 
+                                                  {typeof toolCall.response_tool_inputs === 'array' 
                                                     ? toolCall.response_tool_inputs 
                                                     : JSON.stringify(toolCall.response_tool_inputs, null, 2)
                                                   }
