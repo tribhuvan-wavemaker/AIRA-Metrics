@@ -12,9 +12,14 @@ LLM Analytics Dashboard with Google Sign-In authentication.
 2. Set up Google OAuth:
    - Go to the [Google Cloud Console](https://console.cloud.google.com/)
    - Create a new project or select an existing one
-   - Enable the Google+ API
+   - Enable the Google Identity API
    - Create OAuth 2.0 credentials
-   - Add your domain to authorized origins
+   - Add the following to authorized JavaScript origins:
+     - `http://localhost:5173` (for development)
+     - Your production domain (for deployment)
+   - Add the following to authorized redirect URIs:
+     - `http://localhost:5173` (for development)
+     - Your production domain (for deployment)
 
 3. Create a `.env` file based on `.env.example`:
    ```bash
@@ -23,7 +28,7 @@ LLM Analytics Dashboard with Google Sign-In authentication.
 
 4. Add your Google Client ID to the `.env` file:
    ```
-   VITE_GOOGLE_CLIENT_ID=your_actual_google_client_id
+   VITE_GOOGLE_CLIENT_ID=276152746915-66md18k2d09glv5qia1dm6euh0gmqts6.apps.googleusercontent.com
    ```
 
 5. Start the development server:
