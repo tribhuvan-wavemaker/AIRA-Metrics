@@ -1,7 +1,7 @@
 import React from 'react';
-import { Clock, MessageSquare, Zap, User, RefreshCw } from 'lucide-react';
+import { Clock, MessageSquare, User, RefreshCw } from 'lucide-react';
 import { SessionGroup } from '../types/analytics';
-import { formatDuration, formatTokenCount } from '../utils/sessionUtils';
+import { formatDuration } from '../utils/sessionUtils';
 
 interface SessionTableProps {
   sessions: SessionGroup[];
@@ -48,12 +48,6 @@ export function SessionTable({ sessions, onSessionClick, onRefresh, isRefreshing
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Interactions
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Total Tokens
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Agent
               </th>
             </tr>
           </thead>
@@ -108,17 +102,6 @@ export function SessionTable({ sessions, onSessionClick, onRefresh, isRefreshing
                   >
                     {session.interactionCount || session.interactions.length} messages
                   </button>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm text-gray-900">
-                    <Zap className="w-4 h-4 text-gray-400 mr-2" />
-                    {session.totalTokens ? formatTokenCount(session.totalTokens) : '-'}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                    {session.agentId ? session.agentId.replace('wm_', '').replace('_agent', '') : '-'}
-                  </span>
                 </td>
               </tr>
             ))}
