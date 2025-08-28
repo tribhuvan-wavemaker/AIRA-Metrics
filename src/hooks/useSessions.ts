@@ -40,6 +40,7 @@ export function useSessions({ usernames }: UseSessionsProps) {
   const [sessions, setSessions] = useState<SessionGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<number>(0);
 
   const toTitleCase = (str: string) => {
     return str.replace(/\w\S*/g, (txt) => 
@@ -67,6 +68,7 @@ export function useSessions({ usernames }: UseSessionsProps) {
   };
 
   const fetchSessions = async (requestUsernames: string[]) => {
+    console.log('fetchSessions called with:', requestUsernames);
     try {
       setLoading(true);
       setError(null);
@@ -93,7 +95,9 @@ export function useSessions({ usernames }: UseSessionsProps) {
       const data: SessionsApiResponse = await response.json();
       
       const convertedSessions = data.data.map(convertApiSessionToSessionGroup);
+      console.log('Setting sessions:', convertedSessions);
       setSessions(convertedSessions);
+      setLastFetch(Date.now());
 
     } catch (err) {
       console.error('Error fetching sessions:', err);
@@ -101,6 +105,7 @@ export function useSessions({ usernames }: UseSessionsProps) {
       // Fallback to mock data
       const convertedMockSessions = mockApiSessions.map(convertApiSessionToSessionGroup);
       setSessions(convertedMockSessions);
+      setLastFetch(Date.now());
     } finally {
       setLoading(false);
     }
@@ -111,8 +116,9 @@ export function useSessions({ usernames }: UseSessionsProps) {
   }, [usernames]);
 
   const refetch = () => {
+    console.log('Refetch called');
     fetchSessions(usernames);
   };
 
-  return { sessions, loading, error, refetch };
+  return { sessions, loading, error, refetch, lastFetch };
 }

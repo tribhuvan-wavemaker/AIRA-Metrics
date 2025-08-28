@@ -37,8 +37,7 @@ export function Dashboard() {
     usernames: appliedFilters.users
   });
   
-  // Get refetch function from the same hook instance
-  const { refetch: refetchSessions } = useSessions({
+  const { sessions: apiSessions, loading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useSessions({
     usernames: appliedFilters.users
   });
   
