@@ -106,7 +106,7 @@ export function SessionTable({ sessions, onSessionClick, onRefresh, isRefreshing
                     
                     {/* Popover */}
                     {hoveredSession === session.sessionId && (
-                      <div className="absolute z-[100] bottom-full left-0 mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3">
+                      <div className="absolute z-[100] top-full left-0 mt-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3">
                         <div className="flex items-center mb-2">
                           <Calendar className="w-3 h-3 mr-1" />
                           <span className="font-medium">Session Timeline</span>
@@ -122,7 +122,7 @@ export function SessionTable({ sessions, onSessionClick, onRefresh, isRefreshing
                           </div>
                         </div>
                         {/* Arrow */}
-                        <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900 z-[100]"></div>
+                        <div className="absolute bottom-full left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-900 z-[100]"></div>
                       </div>
                     )}
                   </div>
