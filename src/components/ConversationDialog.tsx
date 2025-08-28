@@ -465,15 +465,13 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                                   )}
                                                   <span>{toolCall.response_tool_name || 'Tool Call'}</span>
                                                 </button>
-                                                {toolCall.response_tool_inputs && (
-                                                  <button
-                                                    onClick={() => toggleToolInputs(toolInputId)}
-                                                    className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
-                                                    title="Show tool inputs"
-                                                  >
-                                                    <MoreHorizontal className="w-3 h-3 text-gray-500" />
-                                                  </button>
-                                                )}
+                                                <button
+                                                  onClick={() => toggleToolInputs(toolInputId)}
+                                                  className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
+                                                  title="Show tool inputs"
+                                                >
+                                                  <MoreHorizontal className="w-3 h-3 text-gray-500" />
+                                                </button>
                                               </div>
                                             </div>
 
