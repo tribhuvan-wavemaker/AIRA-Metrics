@@ -389,11 +389,31 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                         .filter(interaction => interaction.response_type === 'text')
                         .map((response, responseIndex) => {
                           // Find tool calls that belong to this specific agent response
-                          // Tool calls should have the same exchange_id as the text response
-                          const associatedToolCalls = requestGroup.interactions.filter(interaction => 
+                          // First try exact exchange_id match, then try sequential matching
+                          let associatedToolCalls = requestGroup.interactions.filter(interaction => 
                             interaction.response_type === 'tool_use' && 
                             interaction.exchange_id === response.exchange_id
                           );
+                          
+                          // If no exact match, try finding tool calls that come after this response
+                          if (associatedToolCalls.length === 0) {
+                            const responseIndex = requestGroup.interactions.indexOf(response);
+                            associatedToolCalls = requestGroup.interactions.filter((interaction, idx) => 
+                              interaction.response_type === 'tool_use' && 
+                              idx > responseIndex &&
+                              idx < requestGroup.interactions.findIndex((nextResponse, nextIdx) => 
+                                nextIdx > responseIndex && nextResponse.response_type === 'text'
+                              )
+                            );
+                            
+                            // If still no match found, just take the next tool calls in sequence
+                            if (associatedToolCalls.length === 0) {
+                              associatedToolCalls = requestGroup.interactions.filter((interaction, idx) => 
+                                interaction.response_type === 'tool_use' && 
+                                idx > responseIndex
+                              ).slice(0, 1); // Take only the first one to avoid duplicates
+                            }
+                          }
                           
                           return (
                             <div key={`agent-response-${responseIndex}`} className="p-4 border-b border-gray-100">
@@ -422,6 +442,8 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                     const isToolExpanded = expandedToolCalls.has(toolCallId);
                                     const isInputsExpanded = expandedToolInputs.has(toolInputId);
                                     const toolResponse = findToolResponse(index, interactionIndex);
+                                    
+                                    console.log('Tool call:', toolCall.response_tool_name, 'Exchange ID:', toolCall.exchange_id, 'Response Exchange ID:', response.exchange_id);
                                     
                                     return (
                                       <div key={toolCallId} className="ml-4 mt-3 border-l-2 border-orange-200 pl-4">
