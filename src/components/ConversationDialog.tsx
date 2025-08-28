@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MessageSquare, Bot, User, Clock, Zap, ChevronDown, ChevronRight, Terminal, Code } from 'lucide-react';
+import { X, MessageSquare, Bot, User, Clock, Zap, ChevronDown, ChevronRight, Terminal, Code, MoreHorizontal, Tool } from 'lucide-react';
 import { SessionGroup } from '../types/analytics';
 import { formatTokenCount } from '../utils/sessionUtils';
 import { useSessionDetails } from '../hooks/useSessionDetails';
@@ -28,6 +28,7 @@ interface RequestGroup {
 export function ConversationDialog({ session, isOpen, onClose }: ConversationDialogProps) {
   const [expandedRequests, setExpandedRequests] = React.useState<Set<string>>(new Set());
   const [expandedToolCalls, setExpandedToolCalls] = React.useState<Set<string>>(new Set());
+  const [expandedToolInputs, setExpandedToolInputs] = React.useState<Set<string>>(new Set());
   const [expandedExchanges, setExpandedExchanges] = React.useState<Set<string>>(new Set());
   const { interactions: apiInteractions, loading, error } = useSessionDetails(session?.sessionId || null);
 
@@ -61,6 +62,15 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
     setExpandedToolCalls(newExpanded);
   };
 
+  const toggleToolInputs = (toolInputId: string) => {
+    const newExpanded = new Set(expandedToolInputs);
+    if (newExpanded.has(toolInputId)) {
+      newExpanded.delete(toolInputId);
+    } else {
+      newExpanded.add(toolInputId);
+    }
+    setExpandedToolInputs(newExpanded);
+  };
   // Group interactions by request_id
   const requestGroups = React.useMemo(() => {
     const groups = new Map<string, SessionDetailInteraction[]>();
@@ -172,6 +182,25 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
     return { textResponses, toolCalls, toolResults };
   };
 
+  // Find tool response for a given tool call
+  const findToolResponse = (toolCallRequestId: string, toolId: string) => {
+    // Find the next request that contains the tool result
+    const currentRequestIndex = requestGroups.findIndex(group => group.requestId === toolCallRequestId);
+    if (currentRequestIndex === -1) return null;
+    
+    // Look for tool_result in subsequent requests
+    for (let i = currentRequestIndex + 1; i < requestGroups.length; i++) {
+      const nextGroup = requestGroups[i];
+      const toolResult = nextGroup.interactions.find(interaction => 
+        interaction.request_type === 'tool_result' && 
+        interaction.request_tool_id === toolId
+      );
+      if (toolResult) {
+        return toolResult.request_content;
+      }
+    }
+    return null;
+  };
   if (!isOpen || !session) return null;
 
   const formatTimestamp = (timestamp: number) => {
@@ -360,6 +389,78 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                         </div>
                       )}
 
+                      {/* Tool Calls */}
+                      {requestGroup.interactions
+                        .filter(interaction => interaction.request_type === 'tool_use')
+                        .map((toolCall, toolIndex) => {
+                          const toolCallId = `${requestGroup.requestId}-tool-${toolIndex}`;
+                          const toolInputId = `${toolCallId}-inputs`;
+                          const isToolExpanded = expandedToolCalls.has(toolCallId);
+                          const isInputsExpanded = expandedToolInputs.has(toolInputId);
+                          const toolResponse = findToolResponse(requestGroup.requestId, toolCall.request_tool_id);
+                          
+                          return (
+                            <div key={toolCallId} className="p-4 border-b border-gray-100">
+                              <div className="flex items-start space-x-3">
+                                <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                                  <Tool className="w-4 h-4 text-orange-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  {/* Tool Header */}
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={() => toggleToolCall(toolCallId)}
+                                        className="flex items-center space-x-2 text-sm font-medium text-gray-900 hover:text-orange-600 transition-colors duration-150"
+                                      >
+                                        {isToolExpanded ? (
+                                          <ChevronDown className="w-4 h-4" />
+                                        ) : (
+                                          <ChevronRight className="w-4 h-4" />
+                                        )}
+                                        <span>{toolCall.response_tool_name || 'Tool Call'}</span>
+                                      </button>
+                                      <button
+                                        onClick={() => toggleToolInputs(toolInputId)}
+                                        className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
+                                        title="Show tool inputs"
+                                      >
+                                        <MoreHorizontal className="w-4 h-4 text-gray-500" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Tool Inputs (shown when 3 dots clicked) */}
+                                  {isInputsExpanded && toolCall.response_tool_inputs && (
+                                    <div className="mb-3 bg-gray-50 rounded-lg p-3">
+                                      <h5 className="text-xs font-medium text-gray-700 mb-2">Tool Inputs:</h5>
+                                      <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
+                                        {typeof toolCall.response_tool_inputs === 'string' 
+                                          ? toolCall.response_tool_inputs 
+                                          : JSON.stringify(toolCall.response_tool_inputs, null, 2)
+                                        }
+                                      </pre>
+                                    </div>
+                                  )}
+
+                                  {/* Tool Response (shown when expanded) */}
+                                  {isToolExpanded && (
+                                    <div className="bg-orange-50 rounded-lg p-3">
+                                      <h5 className="text-xs font-medium text-orange-700 mb-2">Tool Response:</h5>
+                                      {toolResponse ? (
+                                        <div className="text-sm text-gray-700">
+                                          <MarkdownRenderer content={toolResponse} />
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-gray-500 italic">No response found</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       {/* Text Responses */}
                       {textResponses.map((response, responseIndex) => (
                         <div key={`text-${responseIndex}`} className="p-4 border-b border-gray-100">
