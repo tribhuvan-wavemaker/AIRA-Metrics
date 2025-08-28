@@ -84,22 +84,16 @@ export function useSessionDetails(sessionId: string | null) {
         // Handle new API format where data is keyed by request ID
         let allInteractions: SessionDetailInteraction[] = [];
         
-        if (typeof data === 'object' && data !== null) {
+        if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
           // If data is an object with request IDs as keys
           Object.values(data).forEach((requestInteractions: any) => {
             if (Array.isArray(requestInteractions)) {
-              requestInteractions.forEach(interaction => {
-                const normalizedInteractions = normalizeInteraction(interaction);
-                allInteractions.push(...normalizedInteractions);
-              });
+              allInteractions.push(...requestInteractions);
             }
           });
         } else if (Array.isArray(data)) {
           // Fallback for old format
-          data.forEach(interaction => {
-            const normalizedInteractions = normalizeInteraction(interaction);
-            allInteractions.push(...normalizedInteractions);
-          });
+          allInteractions = data;
         }
         
         // Sort interactions by timestamp
