@@ -40,8 +40,6 @@ export function useSessions({ usernames }: UseSessionsProps) {
   const [sessions, setSessions] = useState<SessionGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [lastUsernames, setLastUsernames] = useState<string[]>([]);
 
   const toTitleCase = (str: string) => {
     return str.replace(/\w\S*/g, (txt) => 
@@ -110,18 +108,10 @@ export function useSessions({ usernames }: UseSessionsProps) {
 
   useEffect(() => {
     fetchSessions(usernames);
-  }, [refreshTrigger]);
-
-  useEffect(() => {
-    // Only fetch when usernames actually change
-    if (JSON.stringify(usernames) !== JSON.stringify(lastUsernames)) {
-      setLastUsernames(usernames);
-      fetchSessions(usernames);
-    }
-  }, [usernames, lastUsernames]);
+  }, [usernames]);
 
   const refetch = () => {
-    setRefreshTrigger(prev => prev + 1);
+    fetchSessions(usernames);
   };
 
   return { sessions, loading, error, refetch };
