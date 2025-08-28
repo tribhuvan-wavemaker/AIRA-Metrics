@@ -384,101 +384,111 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                           </div>
                         </div>
                       )}
-
-                      {/* Tool Calls */}
+                      {/* Agent Responses with Associated Tool Calls */}
                       {requestGroup.interactions
-                        .filter(interaction => interaction.response_type === 'tool_use')
-                        .map((toolCall, toolIndex) => {
-                          const interactionIndex = requestGroup.interactions.indexOf(toolCall);
-                          const toolCallId = `${requestGroup.requestId}-tool-${toolIndex}`;
-                          const toolInputId = `${toolCallId}-inputs`;
-                          const isToolExpanded = expandedToolCalls.has(toolCallId);
-                          const isInputsExpanded = expandedToolInputs.has(toolInputId);
-                          const toolResponse = findToolResponse(index, interactionIndex);
+                        .filter(interaction => interaction.response_type === 'text')
+                        .map((response, responseIndex) => {
+                          // Find tool calls that belong to this agent response
+                          const associatedToolCalls = requestGroup.interactions.filter(interaction => 
+                            interaction.response_type === 'tool_use' && 
+                            interaction.timestamp <= response.timestamp
+                          );
                           
                           return (
-                            <div key={toolCallId} className="p-4 border-b border-gray-100">
+                            <div key={`agent-response-${responseIndex}`} className="p-4 border-b border-gray-100">
                               <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                                  <Tool className="w-4 h-4 text-orange-600" />
+                                <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                  <Bot className="w-4 h-4 text-green-600" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  {/* Tool Header */}
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center space-x-2">
-                                      <button
-                                        onClick={() => toggleToolCall(toolCallId)}
-                                        className="flex items-center space-x-2 text-sm font-medium text-gray-900 hover:text-orange-600 transition-colors duration-150"
-                                      >
-                                        {isToolExpanded ? (
-                                          <ChevronDown className="w-4 h-4" />
-                                        ) : (
-                                          <ChevronRight className="w-4 h-4" />
-                                        )}
-                                        <span>{toolCall.response_tool_name || 'Tool Call'}</span>
-                                      </button>
-                                      <button
-                                        onClick={() => toggleToolInputs(toolInputId)}
-                                        className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
-                                        title="Show tool inputs"
-                                      >
-                                        <MoreHorizontal className="w-4 h-4 text-gray-500" />
-                                      </button>
-                                    </div>
+                                  <h4 className="text-sm font-medium text-gray-900 mb-2">
+                                    {response.agent_id ? response.agent_id : 'Assistant'}
+                                  </h4>
+                                  
+                                  {/* Agent Text Response */}
+                                  <div className="bg-green-50 rounded-lg p-3 mb-3">
+                                    <MarkdownRenderer 
+                                      content={response.response_content}
+                                      className="text-sm text-gray-700"
+                                    />
                                   </div>
 
-                                  {/* Tool Inputs (shown when 3 dots clicked) */}
-                                  {isInputsExpanded && toolCall.response_tool_inputs && (
-                                    <div className="mb-3 bg-gray-50 rounded-lg p-3">
-                                      <h5 className="text-xs font-medium text-gray-700 mb-2">Tool Inputs:</h5>
-                                      <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
-                                        {typeof toolCall.response_tool_inputs === 'string' 
-                                          ? toolCall.response_tool_inputs 
-                                          : JSON.stringify(toolCall.response_tool_inputs, null, 2)
-                                        }
-                                      </pre>
-                                    </div>
-                                  )}
+                                  {/* Associated Tool Calls */}
+                                  {associatedToolCalls.map((toolCall, toolIndex) => {
+                                    const interactionIndex = requestGroup.interactions.indexOf(toolCall);
+                                    const toolCallId = `${requestGroup.requestId}-agent-${responseIndex}-tool-${toolIndex}`;
+                                    const toolInputId = `${toolCallId}-inputs`;
+                                    const isToolExpanded = expandedToolCalls.has(toolCallId);
+                                    const isInputsExpanded = expandedToolInputs.has(toolInputId);
+                                    const toolResponse = findToolResponse(index, interactionIndex);
+                                    
+                                    return (
+                                      <div key={toolCallId} className="ml-4 mt-3 border-l-2 border-orange-200 pl-4">
+                                        <div className="flex items-start space-x-3">
+                                          <div className="flex-shrink-0 w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                                            <Tool className="w-3 h-3 text-orange-600" />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            {/* Tool Header */}
+                                            <div className="flex items-center justify-between mb-2">
+                                              <div className="flex items-center space-x-2">
+                                                <button
+                                                  onClick={() => toggleToolCall(toolCallId)}
+                                                  className="flex items-center space-x-2 text-xs font-medium text-gray-800 hover:text-orange-600 transition-colors duration-150"
+                                                >
+                                                  {isToolExpanded ? (
+                                                    <ChevronDown className="w-3 h-3" />
+                                                  ) : (
+                                                    <ChevronRight className="w-3 h-3" />
+                                                  )}
+                                                  <span>{toolCall.response_tool_name || 'Tool Call'}</span>
+                                                </button>
+                                                <button
+                                                  onClick={() => toggleToolInputs(toolInputId)}
+                                                  className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
+                                                  title="Show tool inputs"
+                                                >
+                                                  <MoreHorizontal className="w-3 h-3 text-gray-500" />
+                                                </button>
+                                              </div>
+                                            </div>
 
-                                  {/* Tool Response (shown when expanded) */}
-                                  {isToolExpanded && (
-                                    <div className="bg-orange-50 rounded-lg p-3">
-                                      <h5 className="text-xs font-medium text-orange-700 mb-2">Tool Response:</h5>
-                                      {toolResponse ? (
-                                        <div className="text-sm text-gray-700">
-                                          <MarkdownRenderer content={toolResponse} />
+                                            {/* Tool Inputs (shown when 3 dots clicked) */}
+                                            {isInputsExpanded && toolCall.response_tool_inputs && (
+                                              <div className="mb-3 bg-gray-50 rounded-lg p-2">
+                                                <h5 className="text-xs font-medium text-gray-700 mb-1">Tool Inputs:</h5>
+                                                <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
+                                                  {typeof toolCall.response_tool_inputs === 'string' 
+                                                    ? toolCall.response_tool_inputs 
+                                                    : JSON.stringify(toolCall.response_tool_inputs, null, 2)
+                                                  }
+                                                </pre>
+                                              </div>
+                                            )}
+
+                                            {/* Tool Response (shown when expanded) */}
+                                            {isToolExpanded && (
+                                              <div className="bg-orange-50 rounded-lg p-2">
+                                                <h5 className="text-xs font-medium text-orange-700 mb-1">Tool Response:</h5>
+                                                {toolResponse ? (
+                                                  <div className="text-xs text-gray-700">
+                                                    <MarkdownRenderer content={toolResponse} />
+                                                  </div>
+                                                ) : (
+                                                  <p className="text-xs text-gray-500 italic">No response found</p>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
-                                      ) : (
-                                        <p className="text-sm text-gray-500 italic">No response found</p>
-                                      )}
-                                    </div>
-                                  )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             </div>
                           );
                         })}
-                      {/* Text Responses */}
-                      {textResponses.map((response, responseIndex) => (
-                        <div key={`text-${responseIndex}`} className="p-4 border-b border-gray-100">
-                          <div className="flex items-start space-x-3">
-                            <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                              <Bot className="w-4 h-4 text-green-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                {response.agent_id ? response.agent_id : 'Assistant'}
-                              </h4>
-                              <div className="bg-green-50 rounded-lg p-3">
-                                <MarkdownRenderer 
-                                  content={response.response_content}
-                                  className="text-sm text-gray-700"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>
