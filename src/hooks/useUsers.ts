@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 
-interface User {
-  id: string;
-  name: string;
-  email?: string;
+interface ApiUser {
+  user_name: string;
+  last_active_time: string;
 }
 
 export function useUsers() {
@@ -40,22 +39,27 @@ export function useUsers() {
         let userList: string[] = [];
         
         if (Array.isArray(data)) {
-          // If data is directly an array
-          userList = data.map(user => {
+          // If data is directly an array of user objects
+          userList = data.map((user: ApiUser | string) => {
             if (typeof user === 'string') {
               return toTitleCase(user);
+            } else if (user && typeof user === 'object' && 'user_name' in user) {
+              // New API format with user_name property
+              return toTitleCase(user.user_name);
             } else if (user && typeof user === 'object') {
-              // If user is an object, try to get name, username, or email
-              const userName = user.name || user.username || user.email || user.id || String(user);
+              // Fallback for other object formats
+              const userName = (user as any).name || (user as any).username || (user as any).email || (user as any).id || String(user);
               return toTitleCase(userName);
             }
             return toTitleCase(String(user));
           });
         } else if (data && data.users && Array.isArray(data.users)) {
           // If data has a users property
-          userList = data.users.map((user: any) => {
+          userList = data.users.map((user: ApiUser | string | any) => {
             if (typeof user === 'string') {
               return toTitleCase(user);
+            } else if (user && typeof user === 'object' && 'user_name' in user) {
+              return toTitleCase(user.user_name);
             } else if (user && typeof user === 'object') {
               const userName = user.name || user.username || user.email || user.id || String(user);
               return toTitleCase(userName);
@@ -74,7 +78,7 @@ export function useUsers() {
         console.error('Error fetching users:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch users');
         // Fallback to mock data users in title case
-        const mockUsers = ['John Doe', 'Sarah Wilson', 'Mike Chen', 'Emily Rodriguez', 'Alex Turner'];
+        const mockUsers = ['John Doe', 'Eshwar', 'Raviteja Dugge', 'Shaik Rafiq', 'Likhith Chennareddy', 'Praveen Pokuri', 'Ramarao Pramudula', 'Madhu Gopal', 'Sainath Gundu'];
         setUsers(mockUsers);
       } finally {
         setLoading(false);
