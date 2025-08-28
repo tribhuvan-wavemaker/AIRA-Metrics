@@ -24,7 +24,7 @@ export function useUsers() {
         
         // Use proxy in development, direct API in production
         const apiUrl = import.meta.env.DEV 
-          ? '/api/users' 
+          ? 'https://aira-metrics.onwavemaker.com/users' 
           : 'https://aira-metrics.onwavemaker.com/users';
         
         const response = await fetch(apiUrl);
