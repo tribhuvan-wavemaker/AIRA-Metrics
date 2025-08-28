@@ -109,10 +109,16 @@ export function useSessions({ usernames }: UseSessionsProps) {
   };
 
   useEffect(() => {
-    // Fetch when usernames change or refresh is triggered
-    setLastUsernames(usernames);
     fetchSessions(usernames);
-  }, [usernames, refreshTrigger]);
+  }, [refreshTrigger]);
+
+  useEffect(() => {
+    // Only fetch when usernames actually change
+    if (JSON.stringify(usernames) !== JSON.stringify(lastUsernames)) {
+      setLastUsernames(usernames);
+      fetchSessions(usernames);
+    }
+  }, [usernames, lastUsernames]);
 
   const refetch = () => {
     setRefreshTrigger(prev => prev + 1);
