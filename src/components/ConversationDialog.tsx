@@ -183,23 +183,16 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
   };
 
   // Find tool response for a given tool call
-  const findToolResponse = (toolCallRequestId: string, toolId: string) => {
-    // Find the next request that contains the tool result
-    const currentRequestIndex = requestGroups.findIndex(group => group.requestId === toolCallRequestId);
-    if (currentRequestIndex === -1) return null;
-    
-    // Look for tool_result in subsequent requests
-    for (let i = currentRequestIndex + 1; i <= requestGroups.length; i++) {
-      
-      const nextGroup = requestGroups[i];
-      if(nextGroup){
+  const findToolResponse = (currentRequestIndex: number, toolId: string) => {
+    // Look for tool_result in the next request
+    if (currentRequestIndex + 1 < requestGroups.length) {
+      const nextGroup = requestGroups[currentRequestIndex + 1];
       const toolResult = nextGroup.interactions.find(interaction => 
         interaction.request_type === 'tool_result' && 
         interaction.request_tool_id === toolId
       );
       if (toolResult) {
         return toolResult.request_content;
-      }
       }
     }
     return null;
@@ -400,7 +393,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                           const toolInputId = `${toolCallId}-inputs`;
                           const isToolExpanded = expandedToolCalls.has(toolCallId);
                           const isInputsExpanded = expandedToolInputs.has(toolInputId);
-                          const toolResponse = findToolResponse(requestGroup.requestId, toolCall.request_tool_id);
+                        const toolResponse = findToolResponse(index, toolCall.request_tool_id);
                           
                           return (
                             <div key={toolCallId} className="p-4 border-b border-gray-100">
