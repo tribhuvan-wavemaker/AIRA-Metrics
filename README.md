@@ -16,10 +16,14 @@ LLM Analytics Dashboard with Google Sign-In authentication.
    - Create OAuth 2.0 credentials
    - Add the following to authorized JavaScript origins:
      - `http://localhost:5173` (for development)
+     - `https://localhost:5173` (for HTTPS development)
      - Your production domain (for deployment)
+     - `https://tribhuvan-wavemaker-fdlv.bolt.host` (for your deployed site)
    - Add the following to authorized redirect URIs:
      - `http://localhost:5173` (for development)
+     - `https://localhost:5173` (for HTTPS development)
      - Your production domain (for deployment)
+     - `https://tribhuvan-wavemaker-fdlv.bolt.host` (for your deployed site)
 
 3. Create a `.env` file based on `.env.example`:
    ```bash

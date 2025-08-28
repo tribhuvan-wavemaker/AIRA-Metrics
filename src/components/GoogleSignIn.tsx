@@ -36,6 +36,8 @@ export function GoogleSignIn({ onSuccess, onFailure }: GoogleSignInProps) {
             callback: handleCredentialResponse,
             auto_select: false,
             cancel_on_tap_outside: true,
+            ux_mode: 'popup',
+            use_fedcm_for_prompt: false,
           });
 
           // Render the sign-in button
@@ -45,6 +47,7 @@ export function GoogleSignIn({ onSuccess, onFailure }: GoogleSignInProps) {
               theme: 'outline',
               size: 'large',
               width: 250,
+              type: 'standard',
             }
           );
         } catch (error) {
