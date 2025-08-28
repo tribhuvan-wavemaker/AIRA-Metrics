@@ -78,12 +78,19 @@ export interface FilterOptions {
   sortOrder: 'asc' | 'desc';
 }
 export interface SessionDetailInteraction {
+  agent_id: string;
   exchange_id: string;
+  input_tokens: number;
+  input_tokens_read_from_cache: number;
+  input_tokens_written_to_cache: number;
   interaction_id: number;
   llm_request_id: number;
   llm_response_id: number | number[];
+  model: string;
+  output_tokens: number;
   project_id: string;
   project_name: string;
+  provider: string;
   request_content: string;
   request_id: string;
   request_tool_id: string;
@@ -95,5 +102,6 @@ export interface SessionDetailInteraction {
   response_type: string | string[];
   session_id: string;
   timestamp: number;
+  total_tokens: number;
   user_name: string;
 }

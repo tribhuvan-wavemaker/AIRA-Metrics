@@ -17,6 +17,10 @@ interface RequestGroup {
   interactions: SessionDetailInteraction[];
   timestamp: number;
   userPrompt?: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  agentId: string;
 }
 
 export function ConversationDialog({ session, isOpen, onClose }: ConversationDialogProps) {
@@ -72,11 +76,21 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
       const sortedInteractions = interactions.sort((a, b) => a.timestamp - b.timestamp);
       const userPrompt = sortedInteractions.find(i => i.request_type === 'user_prompt')?.request_content;
       
+      // Calculate token totals for this request
+      const inputTokens = sortedInteractions.reduce((sum, interaction) => sum + (interaction.input_tokens || 0), 0);
+      const outputTokens = sortedInteractions.reduce((sum, interaction) => sum + (interaction.output_tokens || 0), 0);
+      const totalTokens = sortedInteractions.reduce((sum, interaction) => sum + (interaction.total_tokens || 0), 0);
+      const agentId = sortedInteractions[0]?.agent_id || '';
+      
       return {
         requestId,
         interactions: sortedInteractions,
         timestamp: Math.min(...sortedInteractions.map(i => i.timestamp)),
-        userPrompt
+        userPrompt,
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        agentId
       };
     }).sort((a, b) => a.timestamp - b.timestamp);
   }, [apiInteractions]);
@@ -282,14 +296,26 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                             <span className="text-sm font-medium text-gray-900">
                               Request #{index + 1}
                             </span>
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 border border-blue-200 text-blue-800">
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               {requestGroup.interactions.length} interaction{requestGroup.interactions.length !== 1 ? 's' : ''}
                             </span>
+                            {requestGroup.totalTokens > 0 && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                {formatTokenCount(requestGroup.totalTokens)} tokens
+                              </span>
+                            )}
                           </div>
                           {requestGroup.userPrompt && (
                             <p className="text-sm text-gray-700 truncate">
                               {requestGroup.userPrompt}
                             </p>
+                          )}
+                          {requestGroup.totalTokens > 0 && (
+                            <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
+                              <span>Input: {formatTokenCount(requestGroup.inputTokens)}</span>
+                              <span>Output: {formatTokenCount(requestGroup.outputTokens)}</span>
+                              <span>Agent: {requestGroup.agentId.replace('wm_', '').replace('_agent', '')}</span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -330,7 +356,9 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                               <Bot className="w-4 h-4 text-green-600" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">Assistant Response</h4>
+                              <h4 className="text-sm font-medium text-gray-900 mb-2">
+                                {response.agent_id ? response.agent_id.replace('wm_', '').replace('_agent', '') : 'Assistant'} Response
+                              </h4>
                               <div className="bg-green-50 rounded-lg p-3">
                                 <MarkdownRenderer 
                                   content={response.response_content}
