@@ -182,27 +182,15 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
     return { textResponses, toolCalls, toolResults };
   };
 
-  // Find tool response for a given tool call
-  const findToolResponse = (currentRequestIndex: number, toolId: string) => {
+  // Find tool response from the next interaction
+  const findToolResponse = (currentRequestIndex: number, currentInteractionIndex: number) => {
     const currentGroup = requestGroups[currentRequestIndex];
     
-    // First, try to find in the next interaction within the same request
+    // Look for tool response in the next interaction within the same request
     if (currentInteractionIndex + 1 < currentGroup.interactions.length) {
       const nextInteraction = currentGroup.interactions[currentInteractionIndex + 1];
-      if (nextInteraction.request_type === 'tool_result' && nextInteraction.request_tool_id === toolId) {
+      if (nextInteraction.request_type === 'tool_result') {
         return nextInteraction.request_content;
-      }
-    }
-    
-    // If not found in same request, look in the next request
-    if (currentRequestIndex + 1 < requestGroups.length) {
-      const nextGroup = requestGroups[currentRequestIndex + 1];
-      const toolResult = nextGroup.interactions.find(interaction => 
-        interaction.request_type === 'tool_result' && 
-        interaction.request_tool_id === toolId
-      );
-      if (toolResult) {
-        return toolResult.request_content;
       }
     }
     
@@ -405,7 +393,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                           const toolInputId = `${toolCallId}-inputs`;
                           const isToolExpanded = expandedToolCalls.has(toolCallId);
                           const isInputsExpanded = expandedToolInputs.has(toolInputId);
-                          const toolResponse = findToolResponse(index, interactionIndex, toolCall.request_tool_id);
+                          const toolResponse = findToolResponse(index, interactionIndex);
                           
                           return (
                             <div key={toolCallId} className="p-4 border-b border-gray-100">
