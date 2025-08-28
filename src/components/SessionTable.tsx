@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, MessageSquare, User, RefreshCw } from 'lucide-react';
+import { Clock, MessageSquare, User, RefreshCw, Calendar } from 'lucide-react';
 import { SessionGroup } from '../types/analytics';
 import { formatDuration } from '../utils/sessionUtils';
 
@@ -11,6 +11,17 @@ interface SessionTableProps {
 }
 
 export function SessionTable({ sessions, onSessionClick, onRefresh, isRefreshing = false }: SessionTableProps) {
+  const [hoveredSession, setHoveredSession] = React.useState<string | null>(null);
+
+  const formatLocalTime = (gmtTimeString: string) => {
+    try {
+      const date = new Date(gmtTimeString);
+      return date.toLocaleString();
+    } catch (error) {
+      return gmtTimeString;
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
@@ -85,9 +96,35 @@ export function SessionTable({ sessions, onSessionClick, onRefresh, isRefreshing
                   </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm text-gray-900">
+                  <div 
+                    className="flex items-center text-sm text-gray-900 relative"
+                    onMouseEnter={() => setHoveredSession(session.sessionId)}
+                    onMouseLeave={() => setHoveredSession(null)}
+                  >
                     <Clock className="w-4 h-4 text-gray-400 mr-2" />
                     {formatDuration(session.duration)}
+                    
+                    {/* Popover */}
+                    {hoveredSession === session.sessionId && (
+                      <div className="absolute z-50 bottom-full left-0 mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg shadow-lg p-3">
+                        <div className="flex items-center mb-2">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          <span className="font-medium">Session Timeline</span>
+                        </div>
+                        <div className="space-y-1">
+                          <div>
+                            <span className="text-gray-300">Started:</span>
+                            <div className="text-white">{formatLocalTime(new Date(session.startTime).toUTCString())}</div>
+                          </div>
+                          <div>
+                            <span className="text-gray-300">Ended:</span>
+                            <div className="text-white">{formatLocalTime(new Date(session.endTime).toUTCString())}</div>
+                          </div>
+                        </div>
+                        {/* Arrow */}
+                        <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900"></div>
+                      </div>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
