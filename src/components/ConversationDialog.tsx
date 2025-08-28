@@ -189,7 +189,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
     if (currentRequestIndex === -1) return null;
     debugger
     // Look for tool_result in subsequent requests
-    for (let i = currentRequestIndex + 1; i < requestGroups.length; i++) {
+    for (let i = currentRequestIndex + 1; i <= requestGroups.length; i++) {
       debugger
       const nextGroup = requestGroups[i];
       const toolResult = nextGroup.interactions.find(interaction => 
