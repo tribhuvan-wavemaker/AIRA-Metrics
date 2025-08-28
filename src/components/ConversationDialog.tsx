@@ -514,8 +514,8 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                         })}
                     </div>
                   )}
-          
-              )
+                </div>
+              );
             })}
           </div>
         )}
@@ -546,3 +546,4 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
       </div>
     </div>
   )
+}
