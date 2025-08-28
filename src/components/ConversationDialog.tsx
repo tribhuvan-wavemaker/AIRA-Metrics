@@ -437,7 +437,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                   {associatedToolCalls.map((toolCall, toolIndex) => {
                                     const interactionIndex = requestGroup.interactions.indexOf(toolCall);
                                     const toolCallId = `${requestGroup.requestId}-agent-${responseIndex}-tool-${toolIndex}`;
-                                    const toolInputId = `${toolCallId}-inputs`;
+                                    const toolInputId = `${requestGroup.requestId}-${toolCall.exchange_id}-inputs-${toolIndex}`;
                                     const isToolExpanded = expandedToolCalls.has(toolCallId);
                                     const isInputsExpanded = expandedToolInputs.has(toolInputId);
                                     const toolResponse = findToolResponse(index, interactionIndex);
@@ -480,8 +480,8 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                               <div className="mb-3 bg-gray-50 rounded-lg p-2">
                                                 <h5 className="text-xs font-medium text-gray-700 mb-1">Tool Inputs:</h5>
                                                 <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
-                                                  {typeof toolCall.response_tool_inputs === 'array' 
-                                                    ? toolCall.response_tool_inputs 
+                                                  {Array.isArray(toolCall.response_tool_inputs) 
+                                                    ? JSON.stringify(toolCall.response_tool_inputs, null, 2)
                                                     : JSON.stringify(toolCall.response_tool_inputs, null, 2)
                                                   }
                                                 </pre>
