@@ -392,7 +392,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
 
                       {/* Tool Calls */}
                       {requestGroup.interactions
-                        .filter(interaction => interaction.request_type === 'tool_use')
+                        .filter(interaction => interaction.response_type === 'tool_use')
                         .map((toolCall, toolIndex) => {
                           const toolCallId = `${requestGroup.requestId}-tool-${toolIndex}`;
                           const toolInputId = `${toolCallId}-inputs`;
