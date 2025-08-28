@@ -15,7 +15,7 @@ export function SessionTable({ sessions, onSessionClick, onRefresh, isRefreshing
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Session Details</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Sessions</h3>
           {onRefresh && (
             <button
               onClick={onRefresh}
