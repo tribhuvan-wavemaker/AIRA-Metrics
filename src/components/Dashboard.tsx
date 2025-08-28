@@ -33,10 +33,6 @@ export function Dashboard() {
     sortOrder: 'desc'
   });
   
-  const { sessions: apiSessions, loading: sessionsLoading, error: sessionsError } = useSessions({
-    usernames: appliedFilters.users
-  });
-  
   const { sessions: apiSessions, loading: sessionsLoading, error: sessionsError, refetch: refetchSessions } = useSessions({
     usernames: appliedFilters.users
   });
