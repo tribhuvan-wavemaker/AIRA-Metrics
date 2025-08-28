@@ -17,6 +17,9 @@ interface RequestGroup {
   interactions: SessionDetailInteraction[];
   timestamp: number;
   userPrompt?: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
 }
 
 export function ConversationDialog({ session, isOpen, onClose }: ConversationDialogProps) {
@@ -72,11 +75,21 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
       const sortedInteractions = interactions.sort((a, b) => a.timestamp - b.timestamp);
       const userPrompt = sortedInteractions.find(i => i.request_type === 'user_prompt')?.request_content;
       
+      // Calculate token usage for this request group
+      // Note: Since the API doesn't provide token details in the current format,
+      // we'll use placeholder values or calculate from mock data if available
+      const inputTokens = 0; // Would be calculated from actual API data
+      const outputTokens = 0; // Would be calculated from actual API data
+      const totalTokens = inputTokens + outputTokens;
+      
       return {
         requestId,
         interactions: sortedInteractions,
         timestamp: Math.min(...sortedInteractions.map(i => i.timestamp)),
-        userPrompt
+        userPrompt,
+        inputTokens,
+        outputTokens,
+        totalTokens
       };
     }).sort((a, b) => a.timestamp - b.timestamp);
   }, [apiInteractions]);
@@ -285,11 +298,20 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                             <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 border border-blue-200 text-blue-800">
                               {requestGroup.interactions.length} interaction{requestGroup.interactions.length !== 1 ? 's' : ''}
                             </span>
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-50 border border-orange-200 text-orange-800">
+                              {requestGroup.totalTokens > 0 ? `${formatTokenCount(requestGroup.totalTokens)} tokens` : 'No token data'}
+                            </span>
                           </div>
                           {requestGroup.userPrompt && (
                             <p className="text-sm text-gray-700 truncate">
                               {requestGroup.userPrompt}
                             </p>
+                          )}
+                          {requestGroup.totalTokens > 0 && (
+                            <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
+                              <span>Input: {formatTokenCount(requestGroup.inputTokens)}</span>
+                              <span>Output: {formatTokenCount(requestGroup.outputTokens)}</span>
+                            </div>
                           )}
                         </div>
                       </div>
