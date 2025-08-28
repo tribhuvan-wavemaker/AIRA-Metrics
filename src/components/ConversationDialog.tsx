@@ -362,7 +362,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                {response.agent_id ? response.agent_id.replace('wm_', '').replace('_agent', '') : 'Assistant'} Response
+                                {response.agent_id ? response.agent_id : 'Assistant'}
                               </h4>
                               <div className="bg-green-50 rounded-lg p-3">
                                 <MarkdownRenderer 
