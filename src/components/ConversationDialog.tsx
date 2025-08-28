@@ -21,6 +21,8 @@ interface RequestGroup {
   outputTokens: number;
   totalTokens: number;
   agentId: string;
+  provider: string;
+  model: string;
 }
 
 export function ConversationDialog({ session, isOpen, onClose }: ConversationDialogProps) {
@@ -81,6 +83,8 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
       const outputTokens = sortedInteractions.reduce((sum, interaction) => sum + (interaction.output_tokens || 0), 0);
       const totalTokens = sortedInteractions.reduce((sum, interaction) => sum + (interaction.total_tokens || 0), 0);
       const agentId = sortedInteractions[0]?.agent_id || '';
+      const provider = sortedInteractions[0]?.provider || '';
+      const model = sortedInteractions[0]?.model || '';
       
       return {
         requestId,
@@ -90,7 +94,9 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
         inputTokens,
         outputTokens,
         totalTokens,
-        agentId
+        agentId,
+        provider,
+        model
       };
     }).sort((a, b) => a.timestamp - b.timestamp);
   }, [apiInteractions]);
@@ -320,6 +326,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                               <span>Input: {formatTokenCount(requestGroup.inputTokens)}</span>
                               <span>Output: {formatTokenCount(requestGroup.outputTokens)}</span>
                               <span>Agent: {requestGroup.agentId}</span>
+                              <span>Model: {requestGroup.provider}-{requestGroup.model.split('/').pop()}</span>
                             </div>
                           )}
                         </div>
