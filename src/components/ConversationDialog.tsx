@@ -244,11 +244,13 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                 content={interaction.response_content}
                                 className="text-sm text-gray-700"
                               />
-                              {interaction.response_tool_inputs && (
+                              {interaction.response_tool_inputs && interaction.response_tool_inputs !== null && (
                                 <div className="mt-2 pt-2 border-t border-green-200">
                                   <p className="text-xs text-green-600 mb-1">Tool Inputs:</p>
                                   <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono">
-                                    {JSON.stringify(interaction.response_tool_inputs, null, 2)}
+                                    {typeof interaction.response_tool_inputs === 'string' 
+                                      ? interaction.response_tool_inputs 
+                                      : JSON.stringify(interaction.response_tool_inputs, null, 2)}
                                   </pre>
                                 </div>
                               )}
