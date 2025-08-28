@@ -27,7 +27,7 @@ export function LoginPage() {
             </div>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            LLM Analytics Dashboard
+            AIRA Metrics
           </h2>
           <p className="text-gray-600">
             Sign in to access your analytics dashboard
