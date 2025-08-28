@@ -186,7 +186,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
   const findToolResponse = (currentRequestIndex: number, toolId: string) => {
     debugger
     // Look for tool_result in the next request
-    if (currentRequestIndex + 1 < requestGroups.length) {
+    if (currentRequestIndex + 1 <= requestGroups.length) {
       const nextGroup = requestGroups[currentRequestIndex + 1];
       const toolResult = nextGroup.interactions.find(interaction => 
         interaction.request_type === 'tool_result' && 
