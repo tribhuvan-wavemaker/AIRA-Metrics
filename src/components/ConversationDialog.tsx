@@ -388,10 +388,11 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                       {requestGroup.interactions
                         .filter(interaction => interaction.response_type === 'text')
                         .map((response, responseIndex) => {
-                          // Find tool calls that belong to this agent response
+                          // Find tool calls that belong to this specific agent response
+                          // Tool calls should have the same exchange_id as the text response
                           const associatedToolCalls = requestGroup.interactions.filter(interaction => 
                             interaction.response_type === 'tool_use' && 
-                            interaction.timestamp <= response.timestamp
+                            interaction.exchange_id === response.exchange_id
                           );
                           
                           return (
