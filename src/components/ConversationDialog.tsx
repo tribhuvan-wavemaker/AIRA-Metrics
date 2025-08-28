@@ -184,6 +184,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
 
   // Find tool response from the next interaction
   const findToolResponse = (currentRequestIndex: number, currentInteractionIndex: number) => {
+    debugger
     const currentGroup = requestGroups[currentRequestIndex];
     
     // Look for tool response in the next interaction within the same request
