@@ -314,7 +314,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                             <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
                               <span>Input: {formatTokenCount(requestGroup.inputTokens)}</span>
                               <span>Output: {formatTokenCount(requestGroup.outputTokens)}</span>
-                              <span>Agent: {requestGroup.agentId.replace('wm_', '').replace('_agent', '')}</span>
+                              <span>Agent: {requestGroup.agentId}</span>
                             </div>
                           )}
                         </div>
