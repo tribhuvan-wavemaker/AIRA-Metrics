@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MessageSquare, Bot, User, Clock, Zap, ChevronDown, ChevronRight, Terminal, Code, MoreHorizontal, Tool } from 'lucide-react';
+import { X, MessageSquare, Bot, User, Clock, Zap, ChevronDown, ChevronRight, Terminal, Code, MoreHorizontal, PenTool as Tool } from 'lucide-react';
 import { SessionGroup } from '../types/analytics';
 import { formatTokenCount } from '../utils/sessionUtils';
 import { useSessionDetails } from '../hooks/useSessionDetails';
