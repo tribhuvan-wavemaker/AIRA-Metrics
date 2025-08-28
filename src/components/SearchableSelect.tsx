@@ -56,6 +56,16 @@ export function SearchableSelect({
     }
   };
 
+  // Focus the search input when dropdown opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      // Small delay to ensure the dropdown is rendered
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
+  }, [isOpen]);
+
   const removeValue = (valueToRemove: string) => {
     if (multiple) {
       onChange(selectedValues.filter(v => v !== valueToRemove));
