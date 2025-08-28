@@ -1,130 +1,99 @@
 import { useState, useEffect } from 'react';
 import { SessionDetailInteraction } from '../types/analytics';
 
-interface UseSessionDetailsResult {
-  interactions: SessionDetailInteraction[];
-  loading: boolean;
-  error: string | null;
-  refetch: () => void;
+// Mock session details for fallback
+const mockSessionDetails: SessionDetailInteraction[] = [
+  {
+    agent_id: "wm_ui_expert",
+    exchange_id: "mock-exchange-1",
+    input_tokens: 100,
+    input_tokens_read_from_cache: 0,
+    input_tokens_written_to_cache: 0,
+    interaction_id: 1,
+    llm_request_id: 1,
+    llm_response_id: [1, 2],
+    model: "anthropic/claude-3-sonnet",
+    output_tokens: 200,
+    project_name: "Mock Project",
+    provider: "anthropic",
+    request_content: "Hello, can you help me?",
+    request_id: "mock-request-1",
+    request_tool_id: "",
+    request_type: "user_prompt",
+    response_content: ["I'd be happy to help you! What do you need assistance with?"],
+    response_tool_id: [""],
+    response_tool_inputs: [null],
+    response_tool_name: [""],
+    response_type: ["text"],
+    session_id: "mock-session",
+    timestamp: Date.now(),
+    total_tokens: 300,
+    user_name: "Mock User"
+  }
+];
+
+interface UseSessionDetailsProps {
+  sessionId: string | null;
 }
 
-export function useSessionDetails(sessionId: string | null): UseSessionDetailsResult {
+export function useSessionDetails(sessionId: string | null) {
   const [interactions, setInteractions] = useState<SessionDetailInteraction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSessionDetails = async () => {
+  useEffect(() => {
     if (!sessionId) {
       setInteractions([]);
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    const fetchSessionDetails = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-    try {
-      const response = await fetch(`https://aira-metrics.onwavemaker.com/session-details/${sessionId}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        // Use proxy in development, direct API in production
+        const apiUrl = import.meta.env.DEV 
+          ? `/api/session-details/${sessionId}` 
+          : `https://aira-metrics.onwavemaker.com/session-details/${sessionId}`;
+        
+        const response = await fetch(apiUrl);
 
-      const data = await response.json();
-      
-      // Process the new API format where data is keyed by request ID
-      const processedInteractions: SessionDetailInteraction[] = [];
-      
-      // Handle the new format where data is an object keyed by request IDs
-      Object.entries(data).forEach(([requestId, interactions]) => {
-        if (Array.isArray(interactions)) {
-          interactions.forEach((interaction: any) => {
-            // Normalize the interaction data to handle arrays in response fields
-            const normalizedInteractions = normalizeInteraction(interaction);
-            processedInteractions.push(...normalizedInteractions);
-          });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch session details: ${response.status} ${response.statusText}`);
         }
-      });
 
-      // Sort by timestamp
-      processedInteractions.sort((a, b) => a.timestamp - b.timestamp);
-      
-      setInteractions(processedInteractions);
-    } catch (err) {
-      console.error('Error fetching session details:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch session details');
-      
-      // Fallback to mock data for development
-      setInteractions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const data = await response.json();
+        
+        // Handle the new API format where data is keyed by request ID
+        let allInteractions: SessionDetailInteraction[] = [];
+        
+        if (typeof data === 'object' && data !== null) {
+          // If data is an object with request IDs as keys
+          Object.values(data).forEach((requestInteractions: any) => {
+            if (Array.isArray(requestInteractions)) {
+              allInteractions.push(...requestInteractions);
+            }
+          });
+        } else if (Array.isArray(data)) {
+          // If data is directly an array
+          allInteractions = data;
+        }
+        
+        setInteractions(allInteractions);
 
-  // Function to normalize interaction data that may have arrays in response fields
-  const normalizeInteraction = (interaction: any): SessionDetailInteraction[] => {
-    const baseInteraction = {
-      ...interaction,
-      // Ensure all required fields are present
-      agent_id: interaction.agent_id || '',
-      model: interaction.model || '',
-      provider: interaction.provider || '',
-      input_tokens: interaction.input_tokens || 0,
-      output_tokens: interaction.output_tokens || 0,
-      total_tokens: interaction.total_tokens || 0,
-      project_name: interaction.project_name || '',
+      } catch (err) {
+        console.error('Error fetching session details:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch session details');
+        // Fallback to mock data
+        setInteractions(mockSessionDetails);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // If response fields are arrays, create separate interactions for each response
-    if (Array.isArray(interaction.response_type)) {
-      const normalizedInteractions: SessionDetailInteraction[] = [];
-      
-      interaction.response_type.forEach((type: string, index: number) => {
-        normalizedInteractions.push({
-          ...baseInteraction,
-          response_type: type,
-          response_content: Array.isArray(interaction.response_content) 
-            ? interaction.response_content[index] || ''
-            : interaction.response_content,
-          response_tool_id: Array.isArray(interaction.response_tool_id)
-            ? interaction.response_tool_id[index] || ''
-            : interaction.response_tool_id || '',
-          response_tool_name: Array.isArray(interaction.response_tool_name)
-            ? interaction.response_tool_name[index] || ''
-            : interaction.response_tool_name || '',
-          response_tool_inputs: Array.isArray(interaction.response_tool_inputs)
-            ? interaction.response_tool_inputs[index] || null
-            : interaction.response_tool_inputs || null,
-          // Add a unique identifier for each normalized interaction
-          interaction_id: `${interaction.interaction_id}-${index}`,
-        });
-      });
-      
-      return normalizedInteractions;
-    } else {
-      // Single response, return as-is
-      return [{
-        ...baseInteraction,
-        response_type: interaction.response_type || '',
-        response_content: interaction.response_content || '',
-        response_tool_id: interaction.response_tool_id || '',
-        response_tool_name: interaction.response_tool_name || '',
-        response_tool_inputs: interaction.response_tool_inputs || null,
-      }];
-    }
-  };
-
-  const refetch = () => {
-    fetchSessionDetails();
-  };
-
-  useEffect(() => {
     fetchSessionDetails();
   }, [sessionId]);
 
-  return {
-    interactions,
-    loading,
-    error,
-    refetch,
-  };
+  return { interactions, loading, error };
 }

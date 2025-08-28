@@ -1,431 +1,288 @@
-import React from 'react';
-import { X, MessageSquare, Bot, User, Clock, Zap, ChevronDown, ChevronRight, Terminal, Code, Play } from 'lucide-react';
-import { SessionGroup } from '../types/analytics';
+import React, { useState, useMemo } from 'react';
+import { Activity, Users, MessageSquare, Zap, Clock, TrendingUp, ChevronUp, ChevronDown } from 'lucide-react';
+import { UserProfile } from './UserProfile';
+import { FilterBar } from './FilterBar';
+import { MetricsCard } from './MetricsCard';
+import { SessionTable } from './SessionTable';
+import { ConversationDialog } from './ConversationDialog';
 import { formatTokenCount } from '../utils/sessionUtils';
-import { useSessionDetails } from '../hooks/useSessionDetails';
-import { MarkdownRenderer } from './MarkdownRenderer';
-import { SessionDetailInteraction } from '../types/analytics';
+import { mockProjectData } from '../data/mockData';
+import { groupInteractionsBySession } from '../utils/sessionUtils';
+import { FilterOptions, Interaction, SessionGroup } from '../types/analytics';
+import { useUsers } from '../hooks/useUsers';
+import { useSessions } from '../hooks/useSessions';
 
-interface ConversationDialogProps {
-  session: SessionGroup | null;
-  isOpen: boolean;
-  onClose: () => void;
-}
+export function Dashboard() {
+  const { users: apiUsers, loading: usersLoading, error: usersError } = useUsers();
+  
+  const [showMetrics, setShowMetrics] = useState(false);
+  
+  const [filters, setFilters] = useState<FilterOptions>({
+    users: [],
+    project: '',
+    dateRange: 'week',
+    sortBy: 'timestamp',
+    sortOrder: 'desc'
+  });
+  
+  const [appliedFilters, setAppliedFilters] = useState<FilterOptions>({
+    users: [],
+    project: '',
+    dateRange: 'week',
+    sortBy: 'timestamp',
+    sortOrder: 'desc'
+  });
+  
+  const { sessions: apiSessions, loading: sessionsLoading, error: sessionsError } = useSessions({
+    usernames: appliedFilters.users
+  });
+  const { refetch: refetchSessions } = useSessions({
+    usernames: appliedFilters.users
+  });
+  
+  const [selectedSession, setSelectedSession] = useState<SessionGroup | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-interface RequestGroup {
-  requestId: string;
-  interactions: SessionDetailInteraction[];
-  timestamp: number;
-  userPrompt?: string;
-}
+  const hasUnappliedChanges = JSON.stringify(filters) !== JSON.stringify(appliedFilters);
 
-export function ConversationDialog({ session, isOpen, onClose }: ConversationDialogProps) {
-  const [expandedRequests, setExpandedRequests] = React.useState<Set<string>>(new Set());
-  const [expandedToolCalls, setExpandedToolCalls] = React.useState<Set<string>>(new Set());
-  const { interactions: apiInteractions, loading, error } = useSessionDetails(session?.sessionId || null);
-
-  const toggleRequest = (requestId: string) => {
-    const newExpanded = new Set(expandedRequests);
-    if (newExpanded.has(requestId)) {
-      newExpanded.delete(requestId);
-    } else {
-      newExpanded.add(requestId);
-    }
-    setExpandedRequests(newExpanded);
+  const handleApplyFilters = () => {
+    setAppliedFilters({ ...filters });
   };
 
-  const toggleToolCall = (toolCallId: string) => {
-    const newExpanded = new Set(expandedToolCalls);
-    if (newExpanded.has(toolCallId)) {
-      newExpanded.delete(toolCallId);
-    } else {
-      newExpanded.add(toolCallId);
-    }
-    setExpandedToolCalls(newExpanded);
+  const handleRefresh = () => {
+    refetchSessions();
   };
 
-  // Group interactions by request_id
-  const requestGroups = React.useMemo(() => {
-    const groups = new Map<string, SessionDetailInteraction[]>();
+  const handleSessionClick = (session: SessionGroup) => {
+    // Only allow clicking if session has interactions
+    if (!session.interactionCount) return;
     
-    apiInteractions.forEach(interaction => {
-      const requestId = interaction.request_id;
-      if (!groups.has(requestId)) {
-        groups.set(requestId, []);
-      }
-      groups.get(requestId)!.push(interaction);
-    });
+    // Get detailed interactions from mock data
+    const allInteractions = mockProjectData.flatMap(project => project.interaction);
+    const detailedSessions = groupInteractionsBySession(allInteractions);
+    const detailedSession = detailedSessions.find(s => s.sessionId === session.sessionId);
     
-    // Convert to array and sort by earliest timestamp in each group
-    return Array.from(groups.entries()).map(([requestId, interactions]) => {
-      const sortedInteractions = interactions.sort((a, b) => a.timestamp - b.timestamp);
-      const userPrompt = sortedInteractions.find(i => i.request_type === 'user_prompt')?.request_content;
+    setSelectedSession(detailedSession || session);
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setSelectedSession(null);
+  };
+
+  // Get unique projects from API sessions
+  const projects = useMemo(() => 
+    [...new Set(apiSessions.map(s => s.projectName))], [apiSessions]);
+
+  // Filter sessions based on filters
+  const filteredSessions = useMemo(() => {
+    let filtered = apiSessions;
+
+    // Filter by project
+    if (appliedFilters.project) {
+      filtered = filtered.filter(session => session.projectName === appliedFilters.project);
+    }
+
+    // Filter by date range
+    const now = Date.now();
+    const ranges = {
+      day: 24 * 60 * 60 * 1000,
+      week: 7 * 24 * 60 * 60 * 1000,
+      month: 30 * 24 * 60 * 60 * 1000,
+      quarter: 90 * 24 * 60 * 60 * 1000
+    };
+
+    if (appliedFilters.dateRange !== 'custom') {
+      const cutoff = now - ranges[appliedFilters.dateRange];
+      filtered = filtered.filter(session => session.startTime >= cutoff);
+    } else if (appliedFilters.startDate || appliedFilters.endDate) {
+      const startTime = appliedFilters.startDate ? new Date(appliedFilters.startDate).getTime() : 0;
+      const endTime = appliedFilters.endDate ? new Date(appliedFilters.endDate).getTime() : now;
+      filtered = filtered.filter(session => 
+        session.startTime >= startTime && session.startTime <= endTime
+      );
+    }
+
+    return filtered;
+  }, [apiSessions, appliedFilters]);
+
+  // Apply sorting to sessions
+  const sessions = useMemo(() => {
+    return [...filteredSessions].sort((a, b) => {
+      let aValue, bValue;
       
-      return {
-        requestId,
-        interactions: sortedInteractions,
-        timestamp: Math.min(...sortedInteractions.map(i => i.timestamp)),
-        userPrompt
-      };
-    }).sort((a, b) => a.timestamp - b.timestamp);
-  }, [apiInteractions]);
+      switch (appliedFilters.sortBy) {
+        case 'tokens':
+          aValue = a.totalTokens;
+          bValue = b.totalTokens;
+          break;
+        case 'duration':
+          aValue = a.duration;
+          bValue = b.duration;
+          break;
+        case 'interactions':
+          aValue = a.interactionCount || a.interactions.length;
+          bValue = b.interactionCount || b.interactions.length;
+          break;
+        default:
+          aValue = a.startTime;
+          bValue = b.startTime;
+      }
+      
+      return appliedFilters.sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+  }, [filteredSessions, appliedFilters.sortBy, appliedFilters.sortOrder]);
 
-  // Process responses to separate text and tool calls
-  const processResponses = (interaction: SessionDetailInteraction) => {
-    const responses: Array<{
-      type: string;
-      content: string;
-      toolId?: string;
-      toolName?: string;
-      toolInputs?: string;
-      index: number;
-    }> = [];
+  // Calculate metrics
+  const metrics = useMemo(() => {
+    const totalSessions = sessions.length;
+    const totalInteractions = sessions.reduce((sum, session) => sum + (session.interactionCount || session.interactions.length), 0);
+    const totalTokens = sessions.reduce((sum, session) => sum + session.totalTokens, 0);
+    const avgTokensPerSession = totalSessions > 0 ? Math.round(totalTokens / totalSessions) : 0;
+    const avgDuration = sessions.length > 0 
+      ? sessions.reduce((sum, session) => sum + session.duration, 0) / sessions.length 
+      : 0;
+    const uniqueUsers = new Set(sessions.map(s => s.username)).size;
 
-    if (Array.isArray(interaction.response_type)) {
-      interaction.response_type.forEach((type, index) => {
-        responses.push({
-          type,
-          content: Array.isArray(interaction.response_content) 
-            ? interaction.response_content[index] || ''
-            : interaction.response_content,
-          toolId: Array.isArray(interaction.response_tool_id)
-            ? interaction.response_tool_id[index]
-            : interaction.response_tool_id,
-          toolName: Array.isArray(interaction.response_tool_name)
-            ? interaction.response_tool_name[index]
-            : interaction.response_tool_name,
-          toolInputs: Array.isArray(interaction.response_tool_inputs)
-            ? interaction.response_tool_inputs[index]
-            : interaction.response_tool_inputs,
-          index
-        });
-      });
-    } else {
-      responses.push({
-        type: interaction.response_type,
-        content: interaction.response_content as string,
-        toolId: interaction.response_tool_id as string,
-        toolName: interaction.response_tool_name as string,
-        toolInputs: interaction.response_tool_inputs as string,
-        index: 0
-      });
-    }
-
-    return responses;
-  };
-
-  if (!isOpen || !session) return null;
-
-  const formatTimestamp = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
-  };
+    return {
+      totalSessions,
+      totalInteractions,
+      totalTokens,
+      avgTokensPerSession,
+      avgDuration,
+      uniqueUsers
+    };
+  }, [sessions]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center space-x-3">
-            <MessageSquare className="w-6 h-6 text-blue-600" />
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Session Details</h2>
-              <p className="text-sm text-gray-600">
-                Session: {session.sessionId.substring(0, 16)}... • {loading ? 'Loading...' : `${requestGroups.length} requests`}
-              </p>
+              <h1 className="text-3xl font-bold text-gray-900">AIRA Metrics</h1>
+              <p className="text-gray-600 mt-2">Monitor and analyze user interactions with AI agents</p>
             </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-200 rounded-lg transition-colors duration-150"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        {/* Session Summary */}
-        <div className="p-6 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center space-x-2">
-              <User className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs text-gray-500">User</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {apiInteractions.length > 0 ? apiInteractions[0].user_name : session.username}
-                </p>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <Activity className="w-4 h-4" />
+                <span>{sessionsLoading ? 'Loading...' : 'Real-time monitoring'}</span>
               </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Bot className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs text-gray-500">Project</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {apiInteractions.length > 0 ? apiInteractions[0].project_name : session.projectName}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs text-gray-500">Duration</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {Math.round(session.duration / 60000)}m {Math.round((session.duration % 60000) / 1000)}s
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Zap className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs text-gray-500">Total Tokens</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {apiInteractions.length > 0 
-                    ? formatTokenCount(apiInteractions.reduce((sum, i) => sum + (i.total_tokens || 0), 0))
-                    : formatTokenCount(session.totalTokens)
-                  }
-                </p>
-              </div>
+              <UserProfile />
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
-            <span className="text-gray-600">Loading session details...</span>
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Loading and Error States */}
+        {sessionsLoading && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading sessions...</p>
           </div>
         )}
 
-        {/* Error State */}
-        {error && (
-          <div className="flex-1 p-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-800">Error loading session details: {error}</p>
+        {sessionsError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-800">Error loading sessions: {sessionsError}</p>
+          </div>
+        )}
+
+        {/* Metrics Cards */}
+        {!sessionsLoading && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Key Metrics</h3>
+              <button
+                onClick={() => setShowMetrics(!showMetrics)}
+                className="flex items-center space-x-2 px-3 py-1 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+              >
+                <span>{showMetrics ? 'Hide' : 'Show'}</span>
+                {showMetrics ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
             </div>
-          </div>
-        )}
-
-        {/* Request Groups */}
-        {!loading && !error && (
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[60vh]">
-            {requestGroups.map((requestGroup, index) => {
-              const isExpanded = expandedRequests.has(requestGroup.requestId);
-              
-              return (
-                <div key={requestGroup.requestId} className="border border-gray-200 rounded-lg overflow-hidden">
-                  {/* Request Header */}
-                  <div 
-                    className="bg-gray-50 px-4 py-3 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
-                    onClick={() => toggleRequest(requestGroup.requestId)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-3 flex-1">
-                        {isExpanded ? (
-                          <ChevronDown className="w-4 h-4 text-gray-500 mt-1 flex-shrink-0" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-gray-500 mt-1 flex-shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-sm font-medium text-gray-900">
-                              Request #{index + 1}
-                            </span>
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 border border-blue-200 text-blue-800">
-                              {requestGroup.interactions.length} exchange{requestGroup.interactions.length !== 1 ? 's' : ''}
-                            </span>
-                          </div>
-                          {requestGroup.userPrompt && (
-                            <p className="text-sm text-gray-700 line-clamp-2">
-                              {requestGroup.userPrompt}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4 text-xs text-gray-500 ml-4">
-                        <span>{formatTimestamp(requestGroup.timestamp)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Expandable Content */}
-                  {isExpanded && (
-                    <div className="bg-white">
-                      {requestGroup.interactions.map((interaction, interactionIndex) => (
-                        <div key={`${interaction.exchange_id}-${interactionIndex}`} className="border-b border-gray-100 last:border-b-0">
-                          
-                          {/* User Message (for user_prompt type) */}
-                          {interaction.request_type === 'user_prompt' && (
-                            <div className="p-4 bg-blue-50">
-                              <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                  <User className="w-4 h-4 text-blue-600" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <h4 className="text-sm font-medium text-gray-900">User Message</h4>
-                                    <span className="text-xs text-gray-500">{formatTimestamp(interaction.timestamp)}</span>
-                                  </div>
-                                  <div className="bg-white rounded-lg p-3 border border-blue-200">
-                                    <MarkdownRenderer 
-                                      content={interaction.request_content}
-                                      className="text-sm text-gray-700"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Tool Result (for tool_result type) */}
-                          {interaction.request_type === 'tool_result' && (
-                            <div className="p-4 bg-green-50">
-                              <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                  <Terminal className="w-4 h-4 text-green-600" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <h4 className="text-sm font-medium text-gray-900">Tool Result</h4>
-                                    <span className="text-xs text-gray-500">{formatTimestamp(interaction.timestamp)}</span>
-                                    {interaction.request_tool_id && (
-                                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        {interaction.request_tool_id}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="bg-white rounded-lg p-3 border border-green-200">
-                                    <MarkdownRenderer 
-                                      content={interaction.request_content}
-                                      className="text-sm text-gray-700"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* AI Response */}
-                          <div className="p-4">
-                            <div className="flex items-start space-x-3">
-                              <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                <Bot className="w-4 h-4 text-purple-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-2 mb-3">
-                                  <h4 className="text-sm font-medium text-gray-900">AI Response</h4>
-                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-50 border border-purple-200 text-purple-800">
-                                    {interaction.agent_id}
-                                  </span>
-                                  {interaction.total_tokens && (
-                                    <span className="text-xs text-gray-500">
-                                      {formatTokenCount(interaction.total_tokens)} tokens
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Process and display responses */}
-                                <div className="space-y-3">
-                                  {processResponses(interaction).map((response, responseIndex) => (
-                                    <div key={responseIndex}>
-                                      {response.type === 'text' && (
-                                        <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                                          <MarkdownRenderer 
-                                            content={response.content}
-                                            className="text-sm text-gray-700"
-                                          />
-                                        </div>
-                                      )}
-
-                                      {response.type === 'tool_use' && (
-                                        <div className="border border-orange-200 rounded-lg overflow-hidden">
-                                          <div 
-                                            className="bg-orange-50 px-3 py-2 cursor-pointer hover:bg-orange-100 transition-colors duration-150"
-                                            onClick={() => toggleToolCall(`${interaction.exchange_id}-tool-${responseIndex}`)}
-                                          >
-                                            <div className="flex items-center justify-between">
-                                              <div className="flex items-center space-x-2">
-                                                {expandedToolCalls.has(`${interaction.exchange_id}-tool-${responseIndex}`) ? (
-                                                  <ChevronDown className="w-4 h-4 text-orange-600" />
-                                                ) : (
-                                                  <ChevronRight className="w-4 h-4 text-orange-600" />
-                                                )}
-                                                <Code className="w-4 h-4 text-orange-600" />
-                                                <span className="text-sm font-medium text-orange-900">
-                                                  {response.toolName || 'Tool Call'}
-                                                </span>
-                                              </div>
-                                              <Play className="w-4 h-4 text-orange-600" />
-                                            </div>
-                                          </div>
-
-                                          {expandedToolCalls.has(`${interaction.exchange_id}-tool-${responseIndex}`) && (
-                                            <div className="bg-white p-3 border-t border-orange-200">
-                                              {response.content && (
-                                                <div className="mb-3">
-                                                  <p className="text-xs font-medium text-gray-600 mb-1">Description:</p>
-                                                  <div className="bg-gray-50 rounded p-2">
-                                                    <MarkdownRenderer 
-                                                      content={response.content}
-                                                      className="text-sm text-gray-700"
-                                                    />
-                                                  </div>
-                                                </div>
-                                              )}
-                                              
-                                              {response.toolInputs && (
-                                                <div>
-                                                  <p className="text-xs font-medium text-gray-600 mb-1">Tool Inputs:</p>
-                                                  <div className="bg-gray-50 rounded p-2">
-                                                    <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
-                                                      {typeof response.toolInputs === 'string' 
-                                                        ? response.toolInputs 
-                                                        : JSON.stringify(response.toolInputs, null, 2)}
-                                                    </pre>
-                                                  </div>
-                                                </div>
-                                              )}
-
-                                              {response.toolId && (
-                                                <div className="mt-2 pt-2 border-t border-gray-200">
-                                                  <p className="text-xs text-gray-500">Tool ID: {response.toolId}</p>
-                                                </div>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Request Info */}
-                      <div className="bg-gray-50 px-4 py-2 text-xs text-gray-600">
-                        <div className="flex items-center justify-between">
-                          <span>Request ID:</span>
-                          <span className="font-mono">{requestGroup.requestId}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+            {showMetrics && (
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <MetricsCard
+                    title="Total Sessions"
+                    value={metrics.totalSessions}
+                    icon={<MessageSquare className="w-6 h-6" />}
+                    color="blue"
+                    trend={{ direction: 'up', percentage: 12.5 }}
+                  />
+                  <MetricsCard
+                    title="Total Interactions"
+                    value={metrics.totalInteractions}
+                    icon={<Activity className="w-6 h-6" />}
+                    color="teal"
+                    trend={{ direction: 'up', percentage: 8.3 }}
+                  />
+                  <MetricsCard
+                    title="Total Tokens"
+                    value={metrics.totalTokens ? formatTokenCount(metrics.totalTokens) : '-'}
+                    icon={<Zap className="w-6 h-6" />}
+                    color="orange"
+                  />
+                  <MetricsCard
+                    title="Avg Tokens/Session"
+                    value={metrics.avgTokensPerSession ? formatTokenCount(metrics.avgTokensPerSession) : '-'}
+                    icon={<TrendingUp className="w-6 h-6" />}
+                    color="green"
+                  />
+                  <MetricsCard
+                    title="Avg Session Duration"
+                    value={`${Math.round(metrics.avgDuration / 60000)}m`}
+                    icon={<Clock className="w-6 h-6" />}
+                    color="purple"
+                  />
+                  <MetricsCard
+                    title="Active Users"
+                    value={metrics.uniqueUsers}
+                    icon={<Users className="w-6 h-6" />}
+                    color="red"
+                    trend={{ direction: 'up', percentage: 5.7 }}
+                  />
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Footer */}
-        <div className="flex items-center justify-end p-6 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150"
-          >
-            Close
-          </button>
-        </div>
+        {/* Filters */}
+        <FilterBar 
+          filters={filters}
+          onFiltersChange={setFilters}
+          onApplyFilters={handleApplyFilters}
+          hasUnappliedChanges={hasUnappliedChanges}
+          users={apiUsers}
+          usersLoading={usersLoading}
+          usersError={usersError}
+          projects={projects}
+        />
+
+        {/* Session Table */}
+        {!sessionsLoading && (
+          <SessionTable 
+            sessions={sessions} 
+            onSessionClick={handleSessionClick}
+            onRefresh={handleRefresh}
+            isRefreshing={sessionsLoading}
+          />
+        )}
+        
+        {/* Conversation Dialog */}
+        <ConversationDialog 
+          session={selectedSession}
+          isOpen={isDialogOpen}
+          onClose={handleCloseDialog}
+        />
       </div>
     </div>
   );
