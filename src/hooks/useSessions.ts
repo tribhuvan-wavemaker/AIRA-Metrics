@@ -22,20 +22,16 @@ export function useSessions(filters?: {
       setLoading(true);
       setError(null);
 
-      const url = new URL('https://aira-metrics.onwavemaker.com/sessions');
-      
-      if (filters?.username) {
-        url.searchParams.append('username', filters.username);
-      }
-      if (filters?.projectName) {
-        url.searchParams.append('projectName', filters.projectName);
-      }
+      const params = new URLSearchParams();
+      if (filters?.username) params.append('username', filters.username);
+      if (filters?.projectName) params.append('projectName', filters.projectName);
       if (filters?.dateRange) {
-        url.searchParams.append('startDate', filters.dateRange.start.toISOString());
-        url.searchParams.append('endDate', filters.dateRange.end.toISOString());
+        params.append('startDate', filters.dateRange.start.toISOString());
+        params.append('endDate', filters.dateRange.end.toISOString());
       }
 
-      const response = await fetch(url.toString());
+      const url = `https://aira-metrics.onwavemaker.com/sessions${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -44,32 +40,8 @@ export function useSessions(filters?: {
       const data = await response.json();
       setSessions(data);
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching sessions:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch sessions');
-      
-      // Fallback to mock data on error
-      setSessions([
-        {
-          sessionId: 'session-1',
-          username: 'john.doe',
-          projectName: 'Sample Project',
-          startTime: Date.now() - 3600000,
-          endTime: Date.now(),
-          duration: 3600000,
-          totalTokens: 15420,
-          interactions: 8
-        },
-        {
-          sessionId: 'session-2',
-          username: 'jane.smith',
-          projectName: 'Another Project',
-          startTime: Date.now() - 7200000,
-          endTime: Date.now() - 3600000,
-          duration: 3600000,
-          totalTokens: 9876,
-          interactions: 5
-        }
-      ]);
     } finally {
       setLoading(false);
     }
@@ -77,7 +49,7 @@ export function useSessions(filters?: {
 
   useEffect(() => {
     fetchSessions();
-  }, [filters?.username, filters?.projectName, filters?.dateRange?.start, filters?.dateRange?.end]);
+  }, [filters?.username, filters?.projectName, filters?.dateRange]);
 
   const refetch = () => {
     fetchSessions();
