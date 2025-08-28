@@ -393,25 +393,25 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                           return interaction.response_type === 'text';
                         })
                         .map((response, responseIndex) => {
-                          // Get tool calls from the same interaction (same exchange_id)
-                          // For array responses, we need to extract tool calls from the same interaction
+                          console.log('Processing response:', response);
+                          
+                          // Extract tool calls from the same interaction
                           const associatedToolCalls: any[] = [];
                           
-                          // Check if this response interaction has tool calls in the same response arrays
-                          if (Array.isArray(response.response_type)) {
+                          if (Array.isArray(response.response_type) && Array.isArray(response.response_tool_name)) {
                             response.response_type.forEach((type, index) => {
                               if (type === 'tool_use') {
-                                const toolName = Array.isArray(response.response_tool_name) 
-                                  ? response.response_tool_name[index] 
-                                  : response.response_tool_name;
-                                const toolId = Array.isArray(response.response_tool_id)
-                                  ? response.response_tool_id[index]
+                                const toolName = response.response_tool_name[index];
+                                const toolId = Array.isArray(response.response_tool_id) 
+                                  ? response.response_tool_id[index] 
                                   : response.response_tool_id;
                                 const toolInputs = Array.isArray(response.response_tool_inputs)
                                   ? response.response_tool_inputs[index]
                                   : response.response_tool_inputs;
                                 
-                                if (toolName) {
+                                console.log('Found tool call:', { toolName, toolId, toolInputs });
+                                
+                                if (toolName && toolName.trim() !== '') {
                                   associatedToolCalls.push({
                                     ...response,
                                     response_tool_name: toolName,
@@ -425,6 +425,8 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                             });
                           }
                           
+                          console.log('Associated tool calls:', associatedToolCalls);
+                          
                           // Get the text content for this response
                           let textContent = '';
                           if (Array.isArray(response.response_content) && Array.isArray(response.response_type)) {
@@ -435,6 +437,8 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                           } else if (!Array.isArray(response.response_content)) {
                             textContent = response.response_content;
                           }
+                          
+                          console.log('Text content:', textContent);
                           
                           return (
                             <div key={`agent-response-${responseIndex}`} className="p-4 border-b border-gray-100">
@@ -448,12 +452,14 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                   </h4>
                                   
                                   {/* Agent Text Response */}
-                                  <div className="bg-green-50 rounded-lg p-3 mb-3">
-                                    <MarkdownRenderer 
-                                      content={textContent}
-                                      className="text-sm text-gray-700"
-                                    />
-                                  </div>
+                                  {textContent && (
+                                    <div className="bg-green-50 rounded-lg p-3 mb-3">
+                                      <MarkdownRenderer 
+                                        content={textContent}
+                                        className="text-sm text-gray-700"
+                                      />
+                                    </div>
+                                  )}
 
                                   {/* Associated Tool Calls */}
                                   {associatedToolCalls.map((toolCall, toolIndex) => {
