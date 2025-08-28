@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Activity, Users, MessageSquare, Zap, Clock, TrendingUp, ChevronUp, ChevronDown } from 'lucide-react';
+import { UserProfile } from './UserProfile';
 import { FilterBar } from './FilterBar';
 import { MetricsCard } from './MetricsCard';
 import { SessionTable } from './SessionTable';
@@ -163,9 +164,12 @@ export function Dashboard() {
               <h1 className="text-3xl font-bold text-gray-900">LLM Analytics Dashboard</h1>
               <p className="text-gray-600 mt-2">Monitor and analyze user interactions with AI agents</p>
             </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <Activity className="w-4 h-4" />
-              <span>{sessionsLoading ? 'Loading...' : 'Real-time monitoring'}</span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <Activity className="w-4 h-4" />
+                <span>{sessionsLoading ? 'Loading...' : 'Real-time monitoring'}</span>
+              </div>
+              <UserProfile />
             </div>
           </div>
         </div>
