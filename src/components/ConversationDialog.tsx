@@ -187,7 +187,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Session Details</h2>
               <p className="text-sm text-gray-600">
-                Session: {session.sessionId}... • {loading ? 'Loading...' : `${requestGroups.length} requests`}
+                Session: {session.sessionId} • {loading ? 'Loading...' : `${requestGroups.length} requests`}
               </p>
             </div>
           </div>
