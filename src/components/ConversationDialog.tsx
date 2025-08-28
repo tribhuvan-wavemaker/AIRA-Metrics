@@ -187,7 +187,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
     // Find the next request that contains the tool result
     const currentRequestIndex = requestGroups.findIndex(group => group.requestId === toolCallRequestId);
     if (currentRequestIndex === -1) return null;
-    debugger
+    
     // Look for tool_result in subsequent requests
     for (let i = currentRequestIndex + 1; i <= requestGroups.length; i++) {
       debugger
