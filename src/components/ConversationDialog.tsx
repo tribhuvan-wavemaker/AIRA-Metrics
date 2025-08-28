@@ -384,163 +384,130 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                         </div>
                       )}
                       {/* Agent Responses with Associated Tool Calls */}
-                      {requestGroup.interactions
-                        .filter(interaction => {
-                          // Handle both single response_type and array response_type
-                          if (Array.isArray(interaction.response_type)) {
-                            return interaction.response_type.includes('text');
-                          }
-                          return interaction.response_type === 'text';
-                        })
-                        .map((response, responseIndex) => {
-                          console.log('Processing response:', response);
-                          
-                          // Extract tool calls from the same interaction
-                          const associatedToolCalls: any[] = [];
-                          
-                          if (Array.isArray(response.response_type) && Array.isArray(response.response_tool_name)) {
-                            response.response_type.forEach((type, index) => {
-                              if (type === 'tool_use') {
-                                const toolName = response.response_tool_name[index];
-                                const toolId = Array.isArray(response.response_tool_id) 
-                                  ? response.response_tool_id[index] 
-                                  : response.response_tool_id;
-                                const toolInputs = Array.isArray(response.response_tool_inputs)
-                                  ? response.response_tool_inputs[index]
-                                  : response.response_tool_inputs;
-                                
-                                console.log('Found tool call:', { toolName, toolId, toolInputs });
-                                
-                                if (toolName && toolName.trim() !== '') {
-                                  associatedToolCalls.push({
-                                    ...response,
-                                    response_tool_name: toolName,
-                                    response_tool_id: toolId,
-                                    response_tool_inputs: toolInputs,
-                                    response_type: 'tool_use',
-                                    toolCallIndex: index
-                                  });
-                                }
-                              }
+                      {requestGroup.interactions.map((interaction, interactionIndex) => {
+                        console.log('Processing interaction:', interaction);
+                        
+                        // Extract all responses from this interaction
+                        const responses: any[] = [];
+                        
+                        if (Array.isArray(interaction.response_type)) {
+                          interaction.response_type.forEach((type, index) => {
+                            const content = Array.isArray(interaction.response_content) 
+                              ? interaction.response_content[index] 
+                              : interaction.response_content;
+                            const toolName = Array.isArray(interaction.response_tool_name)
+                              ? interaction.response_tool_name[index]
+                              : interaction.response_tool_name;
+                            const toolId = Array.isArray(interaction.response_tool_id)
+                              ? interaction.response_tool_id[index]
+                              : interaction.response_tool_id;
+                            const toolInputs = Array.isArray(interaction.response_tool_inputs)
+                              ? interaction.response_tool_inputs[index]
+                              : interaction.response_tool_inputs;
+                            
+                            responses.push({
+                              type,
+                              content,
+                              toolName,
+                              toolId,
+                              toolInputs,
+                              index
                             });
-                          }
-                          
-                          console.log('Associated tool calls:', associatedToolCalls);
-                          
-                          // Get the text content for this response
-                          let textContent = '';
-                          if (Array.isArray(response.response_content) && Array.isArray(response.response_type)) {
-                            const textIndex = response.response_type.findIndex(type => type === 'text');
-                            if (textIndex !== -1) {
-                              textContent = response.response_content[textIndex] || '';
-                            }
-                          } else if (!Array.isArray(response.response_content)) {
-                            textContent = response.response_content;
-                          }
-                          
-                          console.log('Text content:', textContent);
-                          
-                          return (
-                            <div key={`agent-response-${responseIndex}`} className="p-4 border-b border-gray-100">
-                              <div className="flex items-start space-x-3">
-                                <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                                  <Bot className="w-4 h-4 text-green-600" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                    {response.agent_id ? response.agent_id : 'Assistant'}
-                                  </h4>
+                          });
+                        } else {
+                          // Single response
+                          responses.push({
+                            type: interaction.response_type,
+                            content: interaction.response_content,
+                            toolName: interaction.response_tool_name,
+                            toolId: interaction.response_tool_id,
+                            toolInputs: interaction.response_tool_inputs,
+                            index: 0
+                          });
+                        }
+                        
+                        console.log('Extracted responses:', responses);
+                        
+                        // Group responses by type
+                        const textResponses = responses.filter(r => r.type === 'text');
+                        const toolCalls = responses.filter(r => r.type === 'tool_use');
+                        
+                        console.log('Text responses:', textResponses);
+                        console.log('Tool calls:', toolCalls);
+                        
+                        // Only render if there are text responses or tool calls
+                        if (textResponses.length === 0 && toolCalls.length === 0) {
+                          return null;
+                        }
+                        
+                        return (
+                          <div key={`interaction-${interactionIndex}`} className="p-4 border-b border-gray-100">
+                            <div className="flex items-start space-x-3">
+                              <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <Bot className="w-4 h-4 text-green-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-medium text-gray-900 mb-2">
+                                  {interaction.agent_id ? interaction.agent_id : 'Assistant'}
+                                </h4>
+                                
+                                {/* Agent Text Responses */}
+                                {textResponses.map((textResponse, textIndex) => (
+                                  <div key={`text-${textIndex}`} className="bg-green-50 rounded-lg p-3 mb-3">
+                                    <MarkdownRenderer 
+                                      content={textResponse.content}
+                                      className="text-sm text-gray-700"
+                                    />
+                                  </div>
+                                ))}
+
+                                {/* Tool Calls */}
+                                {toolCalls.map((toolCall, toolIndex) => {
+                                  const toolCallId = `${requestGroup.requestId}-interaction-${interactionIndex}-tool-${toolIndex}`;
+                                  const toolInputId = `${requestGroup.requestId}-interaction-${interactionIndex}-inputs-${toolIndex}`;
+                                  const isToolExpanded = expandedToolCalls.has(toolCallId);
+                                  const isInputsExpanded = expandedToolInputs.has(toolInputId);
                                   
-                                  {/* Agent Text Response */}
-                                  {textContent && (
-                                    <div className="bg-green-50 rounded-lg p-3 mb-3">
-                                      <MarkdownRenderer 
-                                        content={textContent}
-                                        className="text-sm text-gray-700"
-                                      />
-                                    </div>
-                                  )}
-
-                                  {/* Associated Tool Calls */}
-                                  {associatedToolCalls.map((toolCall, toolIndex) => {
-                                    const toolCallId = `${requestGroup.requestId}-agent-${responseIndex}-tool-${toolCall.toolCallIndex || toolIndex}`;
-                                    const toolInputId = `${requestGroup.requestId}-${toolCall.exchange_id}-inputs-${toolCall.toolCallIndex || toolIndex}`;
-                                    const isToolExpanded = expandedToolCalls.has(toolCallId);
-                                    const isInputsExpanded = expandedToolInputs.has(toolInputId);
-                                    
-                                    // Find tool response from subsequent interactions
-                                    const toolResponse = requestGroup.interactions
-                                      .filter(interaction => 
-                                        interaction.request_type === 'tool_result' && 
-                                        interaction.request_tool_id === toolCall.response_tool_id
-                                      )
-                                      .map(interaction => interaction.request_content)[0];
-                                    
-                                    return (
-                                      <div key={toolCallId} className="ml-4 mt-3 border-l-2 border-orange-200 pl-4">
-                                        <div className="flex items-start space-x-3">
-                                          <div className="flex-shrink-0 w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
-                                            <Tool className="w-3 h-3 text-orange-600" />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            {/* Tool Header */}
-                                            <div className="flex items-center justify-between mb-2">
-                                              <div className="flex items-center space-x-2">
-                                                <button
-                                                  onClick={() => toggleToolCall(toolCallId)}
-                                                  className="flex items-center space-x-2 text-xs font-medium text-gray-800 hover:text-orange-600 transition-colors duration-150"
-                                                >
-                                                  {isToolExpanded ? (
-                                                    <ChevronDown className="w-3 h-3" />
-                                                  ) : (
-                                                    <ChevronRight className="w-3 h-3" />
-                                                  )}
-                                                  <span>{toolCall.response_tool_name || 'Tool Call'}</span>
-                                                </button>
-                                                {toolCall.response_tool_inputs && (
-                                                  <button
-                                                    onClick={() => toggleToolInputs(toolInputId)}
-                                                    className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
-                                                    title="Show tool inputs"
-                                                  >
-                                                    <MoreHorizontal className="w-3 h-3 text-gray-500" />
-                                                  </button>
-                                                )}
-                                              </div>
-                                            </div>
-
-                                            {/* Tool Inputs (shown when 3 dots clicked) */}
-                                            {isInputsExpanded && toolCall.response_tool_inputs && (
-                                              <div className="mb-3 bg-gray-50 rounded-lg p-2">
-                                                <h5 className="text-xs font-medium text-gray-700 mb-1">Tool Inputs:</h5>
-                                                <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
-                                                  {typeof toolCall.response_tool_inputs === 'string'
-                                                    ? toolCall.response_tool_inputs
-                                                    : JSON.stringify(toolCall.response_tool_inputs, null, 2)
-                                                  }
-                                                </pre>
-                                              </div>
-                                            )}
-
-                                            {/* Tool Response (shown when expanded) */}
-                                            {isToolExpanded && (
-                                              <div className="bg-orange-50 rounded-lg p-2">
-                                                <h5 className="text-xs font-medium text-orange-700 mb-1">Tool Response:</h5>
-                                                {toolResponse ? (
-                                                  <div className="text-xs text-gray-700">
-                                                    <MarkdownRenderer content={toolResponse} />
-                                                  </div>
-                                                ) : (
-                                                  <p className="text-xs text-gray-500 italic">No response found</p>
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
+                                  // Find tool response from subsequent interactions
+                                  const toolResponse = requestGroup.interactions
+                                    .filter(interaction => 
+                                      interaction.request_type === 'tool_result' && 
+                                      interaction.request_tool_id === toolCall.toolId
+                                    )
+                                    .map(interaction => interaction.request_content)[0];
+                          
+                                  return (
+                                    <div key={toolCallId} className="ml-4 mt-3 border-l-2 border-orange-200 pl-4">
+                                      <div className="flex items-start space-x-3">
+                                        <div className="flex-shrink-0 w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                                          <Tool className="w-3 h-3 text-orange-600" />
                                         </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                        <div className="flex-1 min-w-0">
+                                          {/* Tool Header */}
+                                          <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center space-x-2">
+                                              <button
+                                                onClick={() => toggleToolCall(toolCallId)}
+                                                className="flex items-center space-x-2 text-xs font-medium text-gray-800 hover:text-orange-600 transition-colors duration-150"
+                                              >
+                                                {isToolExpanded ? (
+                                                  <ChevronDown className="w-3 h-3" />
+                                                ) : (
+                                                  <ChevronRight className="w-3 h-3" />
+                                                )}
+                                                <span>{toolCall.toolName || 'Tool Call'}</span>
+                                              </button>
+                                              {toolCall.toolInputs && (
+                                                <button
+                                                  onClick={() => toggleToolInputs(toolInputId)}
+                                                  className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
+                                                  title="Show tool inputs"
+                                                >
+                                                  <MoreHorizontal className="w-3 h-3 text-gray-500" />
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
                               </div>
                             </div>
                           );
@@ -555,6 +522,18 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
  
         
 
+                                          {/* Tool Inputs (shown when 3 dots clicked) */}
+                                          {isInputsExpanded && toolCall.toolInputs && (
+                                            <div className="mb-3 bg-gray-50 rounded-lg p-2">
+                                              <h5 className="text-xs font-medium text-gray-700 mb-1">Tool Inputs:</h5>
+                                              <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
+                                                {typeof toolCall.toolInputs === 'string'
+                                                  ? toolCall.toolInputs
+                                                  : JSON.stringify(toolCall.toolInputs, null, 2)
+                                                }
+                                              </pre>
+                                            </div>
+                                          )}
         {/* Footer */}
         <div className="flex items-center justify-end p-6 border-t border-gray-200 bg-gray-50">
           <button
