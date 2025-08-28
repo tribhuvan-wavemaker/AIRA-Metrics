@@ -82,27 +82,27 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
   }, [apiInteractions]);
 
   // Group interactions by exchange_id
-  // const exchangeGroups = React.useMemo(() => {
-  //   const groups = new Map<string, SessionDetailInteraction[]>();
+  const exchangeGroups = React.useMemo(() => {
+    const groups = new Map<string, SessionDetailInteraction[]>();
     
-  //   apiInteractions.forEach(interaction => {
-  //     const exchangeId = interaction.exchange_id;
-  //     if (!groups.has(exchangeId)) {
-  //       groups.set(exchangeId, []);
-  //     }
-  //     groups.get(exchangeId)!.push(interaction);
-  //   });
+    apiInteractions.forEach(interaction => {
+      const exchangeId = interaction.exchange_id;
+      if (!groups.has(exchangeId)) {
+        groups.set(exchangeId, []);
+      }
+      groups.get(exchangeId)!.push(interaction);
+    });
     
-  //   // Convert to array and sort by earliest timestamp in each group
-  //   return Array.from(groups.entries()).map(([exchangeId, interactions]) => ({
-  //     exchangeId,
-  //     interactions: interactions.sort((a, b) => a.timestamp - b.timestamp),
-  //     timestamp: Math.min(...interactions.map(i => i.timestamp))
-  //   })).sort((a, b) => a.timestamp - b.timestamp);
-  // }, [apiInteractions]);
+    // Convert to array and sort by earliest timestamp in each group
+    return Array.from(groups.entries()).map(([exchangeId, interactions]) => ({
+      exchangeId,
+      interactions: interactions.sort((a, b) => a.timestamp - b.timestamp),
+      timestamp: Math.min(...interactions.map(i => i.timestamp))
+    })).sort((a, b) => a.timestamp - b.timestamp);
+  }, [apiInteractions]);
 
   // Group responses by type for better display
-  // const groupResponsesByType = (interactions: SessionDetailInteraction[]) => {
+  const groupResponsesByType = (interactions: SessionDetailInteraction[]) => {
     const textResponses: SessionDetailInteraction[] = [];
     const toolCalls: SessionDetailInteraction[] = [];
     const toolResults: SessionDetailInteraction[] = [];
@@ -187,7 +187,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Session Details</h2>
               <p className="text-sm text-gray-600">
-                Session: {session.sessionId • {loading ? 'Loading...' : `${requestGroups.length} requests`}
+                Session: {session.sessionId.substring(0, 16)}... • {loading ? 'Loading...' : `${requestGroups.length} requests`}
               </p>
             </div>
           </div>
