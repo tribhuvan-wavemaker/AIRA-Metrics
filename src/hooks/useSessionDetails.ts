@@ -22,6 +22,7 @@ interface RequestGroup {
 export function ConversationDialog({ session, isOpen, onClose }: ConversationDialogProps) {
   const [expandedRequests, setExpandedRequests] = React.useState<Set<string>>(new Set());
   const [expandedToolCalls, setExpandedToolCalls] = React.useState<Set<string>>(new Set());
+  const [expandedExchanges, setExpandedExchanges] = React.useState<Set<string>>(new Set());
   const { interactions: apiInteractions, loading, error } = useSessionDetails(session?.sessionId || null);
 
   const toggleRequest = (requestId: string) => {
@@ -32,6 +33,16 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
       newExpanded.add(requestId);
     }
     setExpandedRequests(newExpanded);
+  };
+
+  const toggleExchange = (exchangeId: string) => {
+    const newExpanded = new Set(expandedExchanges);
+    if (newExpanded.has(exchangeId)) {
+      newExpanded.delete(exchangeId);
+    } else {
+      newExpanded.add(exchangeId);
+    }
+    setExpandedExchanges(newExpanded);
   };
 
   const toggleToolCall = (toolCallId: string) => {
@@ -68,6 +79,26 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
         userPrompt
       };
     }).sort((a, b) => a.timestamp - b.timestamp);
+  }, [apiInteractions]);
+
+  // Group interactions by exchange_id
+  const exchangeGroups = React.useMemo(() => {
+    const groups = new Map<string, SessionDetailInteraction[]>();
+    
+    apiInteractions.forEach(interaction => {
+      const exchangeId = interaction.exchange_id;
+      if (!groups.has(exchangeId)) {
+        groups.set(exchangeId, []);
+      }
+      groups.get(exchangeId)!.push(interaction);
+    });
+    
+    // Convert to array and sort by earliest timestamp in each group
+    return Array.from(groups.entries()).map(([exchangeId, interactions]) => ({
+      exchangeId,
+      interactions: interactions.sort((a, b) => a.timestamp - b.timestamp),
+      timestamp: Math.min(...interactions.map(i => i.timestamp))
+    })).sort((a, b) => a.timestamp - b.timestamp);
   }, [apiInteractions]);
 
   // Group responses by type for better display
@@ -120,6 +151,30 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
 
   const formatTimestamp = (timestamp: number) => {
     return new Date(timestamp).toLocaleString();
+  };
+
+  const getRequestTypeColor = (type: string) => {
+    switch (type) {
+      case 'user_message':
+        return 'bg-blue-50 border-blue-200 text-blue-800';
+      case 'tool_result':
+        return 'bg-green-50 border-green-200 text-green-800';
+      case 'tool_use':
+        return 'bg-orange-50 border-orange-200 text-orange-800';
+      default:
+        return 'bg-gray-50 border-gray-200 text-gray-800';
+    }
+  };
+
+  const getResponseTypeColor = (type: string) => {
+    switch (type) {
+      case 'text':
+        return 'bg-green-50 border-green-200 text-green-800';
+      case 'tool_use':
+        return 'bg-orange-50 border-orange-200 text-orange-800';
+      default:
+        return 'bg-gray-50 border-gray-200 text-gray-800';
+    }
   };
 
   return (
@@ -274,116 +329,23 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                             <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                               <Bot className="w-4 h-4 text-green-600" />
                             </div>
-      interactions: interactions.sort((a, b) => a.timestamp - b.timestamp),
-      timestamp: Math.min(...interactions.map(i => i.timestamp))
-    })).sort((a, b) => a.timestamp - b.timestamp);
-  }, [apiInteractions]);
-
-  if (!isOpen || !session) return null;
-
-  const formatTimestamp = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
-  };
-
-  const getRequestTypeColor = (type: string) => {
-    switch (type) {
-      case 'user_message':
-        return 'bg-blue-50 border-blue-200 text-blue-800';
-      case 'tool_result':
-        return 'bg-green-50 border-green-200 text-green-800';
-      case 'tool_use':
-        return 'bg-orange-50 border-orange-200 text-orange-800';
-      default:
-        return 'bg-gray-50 border-gray-200 text-gray-800';
-    }
-  };
-
-  const getResponseTypeColor = (type: string) => {
-    switch (type) {
-      case 'text':
-        return 'bg-green-50 border-green-200 text-green-800';
-      case 'tool_use':
-        return 'bg-orange-50 border-orange-200 text-orange-800';
-      default:
-        return 'bg-gray-50 border-gray-200 text-gray-800';
-    }
-  };
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center space-x-3">
-            <MessageSquare className="w-6 h-6 text-blue-600" />
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Session Details</h2>
-              <p className="text-sm text-gray-600">
-                Session: {session.sessionId.substring(0, 16)}... • {loading ? 'Loading...' : `${apiInteractions.length} interactions`}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-200 rounded-lg transition-colors duration-150"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        {/* Session Summary */}
-        <div className="p-6 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center space-x-2">
-              <User className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs text-gray-500">User</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {apiInteractions.length > 0 ? apiInteractions[0].user_name : session.username}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Bot className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs text-gray-500">Agent</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {session.agentId.replace('wm_', '').replace('_agent', '')}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Clock className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs text-gray-500">Duration</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {Math.round(session.duration / 60000)}m {Math.round((session.duration % 60000) / 1000)}s
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Zap className="w-4 h-4 text-gray-500" />
-              <div>
-                <p className="text-xs text-gray-500">Total Tokens</p>
-                <p className="text-sm font-medium text-gray-900">{formatTokenCount(session.totalTokens)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
-            <span className="text-gray-600">Loading session details...</span>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="flex-1 p-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-800">Error loading session details: {error}</p>
-            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-medium text-gray-900 mb-2">Assistant Response</h4>
+                              <div className="bg-green-50 rounded-lg p-3">
+                                <MarkdownRenderer 
+                                  content={response.response_content}
+                                  className="text-sm text-gray-700"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
