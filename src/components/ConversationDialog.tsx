@@ -95,6 +95,11 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
     }).sort((a, b) => a.timestamp - b.timestamp);
   }, [apiInteractions]);
 
+  // Calculate total tokens for the entire session
+  const sessionTotalTokens = React.useMemo(() => {
+    return requestGroups.reduce((sum, group) => sum + group.totalTokens, 0);
+  }, [requestGroups]);
+
   // Group interactions by exchange_id
   const exchangeGroups = React.useMemo(() => {
     const groups = new Map<string, SessionDetailInteraction[]>();
@@ -247,7 +252,7 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
               <Zap className="w-4 h-4 text-gray-500" />
               <div>
                 <p className="text-xs text-gray-500">Total Tokens</p>
-                <p className="text-sm font-medium text-gray-900">{formatTokenCount(session.totalTokens)}</p>
+                <p className="text-sm font-medium text-gray-900">{formatTokenCount(sessionTotalTokens)}</p>
               </div>
             </div>
           </div>
