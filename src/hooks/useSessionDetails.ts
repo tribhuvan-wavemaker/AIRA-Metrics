@@ -70,7 +70,7 @@ export function useSessionDetails(sessionId: string | null) {
 
         // Use proxy in development, direct API in production
         const apiUrl = import.meta.env.DEV 
-          ? `/api/sessions/${sessionId}` 
+          ? `https://aira-metrics.onwavemaker.com/sessions/${sessionId}` 
           : `https://aira-metrics.onwavemaker.com/sessions/${sessionId}`;
 
         const response = await fetch(apiUrl);
