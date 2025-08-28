@@ -385,33 +385,55 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                       )}
                       {/* Agent Responses with Associated Tool Calls */}
                       {requestGroup.interactions
-                        .filter(interaction => interaction.response_type === 'text')
+                        .filter(interaction => {
+                          // Handle both single response_type and array response_type
+                          if (Array.isArray(interaction.response_type)) {
+                            return interaction.response_type.includes('text');
+                          }
+                          return interaction.response_type === 'text';
+                        })
                         .map((response, responseIndex) => {
-                          // Find tool calls that belong to this specific agent response
-                          // First try exact exchange_id match, then try sequential matching
-                          let associatedToolCalls = requestGroup.interactions.filter(interaction => 
-                            interaction.response_type === 'tool_use' && 
-                            interaction.exchange_id === response.exchange_id
-                          );
+                          // Get tool calls from the same interaction (same exchange_id)
+                          // For array responses, we need to extract tool calls from the same interaction
+                          const associatedToolCalls: any[] = [];
                           
-                          // If no exact match, try finding tool calls that come after this response
-                          if (associatedToolCalls.length === 0) {
-                            const responseIndex = requestGroup.interactions.indexOf(response);
-                            associatedToolCalls = requestGroup.interactions.filter((interaction, idx) => 
-                              interaction.response_type === 'tool_use' && 
-                              idx > responseIndex &&
-                              idx < requestGroup.interactions.findIndex((nextResponse, nextIdx) => 
-                                nextIdx > responseIndex && nextResponse.response_type === 'text'
-                              )
-                            );
-                            
-                            // If still no match found, just take the next tool calls in sequence
-                            if (associatedToolCalls.length === 0) {
-                              associatedToolCalls = requestGroup.interactions.filter((interaction, idx) => 
-                                interaction.response_type === 'tool_use' && 
-                                idx > responseIndex
-                              ).slice(0, 1); // Take only the first one to avoid duplicates
+                          // Check if this response interaction has tool calls in the same response arrays
+                          if (Array.isArray(response.response_type)) {
+                            response.response_type.forEach((type, index) => {
+                              if (type === 'tool_use') {
+                                const toolName = Array.isArray(response.response_tool_name) 
+                                  ? response.response_tool_name[index] 
+                                  : response.response_tool_name;
+                                const toolId = Array.isArray(response.response_tool_id)
+                                  ? response.response_tool_id[index]
+                                  : response.response_tool_id;
+                                const toolInputs = Array.isArray(response.response_tool_inputs)
+                                  ? response.response_tool_inputs[index]
+                                  : response.response_tool_inputs;
+                                
+                                if (toolName) {
+                                  associatedToolCalls.push({
+                                    ...response,
+                                    response_tool_name: toolName,
+                                    response_tool_id: toolId,
+                                    response_tool_inputs: toolInputs,
+                                    response_type: 'tool_use',
+                                    toolCallIndex: index
+                                  });
+                                }
+                              }
+                            });
+                          }
+                          
+                          // Get the text content for this response
+                          let textContent = '';
+                          if (Array.isArray(response.response_content) && Array.isArray(response.response_type)) {
+                            const textIndex = response.response_type.findIndex(type => type === 'text');
+                            if (textIndex !== -1) {
+                              textContent = response.response_content[textIndex] || '';
                             }
+                          } else if (!Array.isArray(response.response_content)) {
+                            textContent = response.response_content;
                           }
                           
                           return (
@@ -428,21 +450,25 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                   {/* Agent Text Response */}
                                   <div className="bg-green-50 rounded-lg p-3 mb-3">
                                     <MarkdownRenderer 
-                                      content={response.response_content}
+                                      content={textContent}
                                       className="text-sm text-gray-700"
                                     />
                                   </div>
 
                                   {/* Associated Tool Calls */}
                                   {associatedToolCalls.map((toolCall, toolIndex) => {
-                                    const interactionIndex = requestGroup.interactions.indexOf(toolCall);
-                                    const toolCallId = `${requestGroup.requestId}-agent-${responseIndex}-tool-${toolIndex}`;
-                                    const toolInputId = `${requestGroup.requestId}-${toolCall.exchange_id}-inputs-${toolIndex}`;
+                                    const toolCallId = `${requestGroup.requestId}-agent-${responseIndex}-tool-${toolCall.toolCallIndex || toolIndex}`;
+                                    const toolInputId = `${requestGroup.requestId}-${toolCall.exchange_id}-inputs-${toolCall.toolCallIndex || toolIndex}`;
                                     const isToolExpanded = expandedToolCalls.has(toolCallId);
                                     const isInputsExpanded = expandedToolInputs.has(toolInputId);
-                                    const toolResponse = findToolResponse(index, interactionIndex);
                                     
-                                    console.log('Tool call:', toolCall.response_tool_name, 'Exchange ID:', toolCall.exchange_id, 'Response Exchange ID:', response.exchange_id);
+                                    // Find tool response from subsequent interactions
+                                    const toolResponse = requestGroup.interactions
+                                      .filter(interaction => 
+                                        interaction.request_type === 'tool_result' && 
+                                        interaction.request_tool_id === toolCall.response_tool_id
+                                      )
+                                      .map(interaction => interaction.request_content)[0];
                                     
                                     return (
                                       <div key={toolCallId} className="ml-4 mt-3 border-l-2 border-orange-200 pl-4">
@@ -482,8 +508,8 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
                                               <div className="mb-3 bg-gray-50 rounded-lg p-2">
                                                 <h5 className="text-xs font-medium text-gray-700 mb-1">Tool Inputs:</h5>
                                                 <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto">
-                                                  {Array.isArray(toolCall.response_tool_inputs) 
-                                                    ? JSON.stringify(toolCall.response_tool_inputs, null, 2)
+                                                  {typeof toolCall.response_tool_inputs === 'string'
+                                                    ? toolCall.response_tool_inputs
                                                     : JSON.stringify(toolCall.response_tool_inputs, null, 2)
                                                   }
                                                 </pre>
