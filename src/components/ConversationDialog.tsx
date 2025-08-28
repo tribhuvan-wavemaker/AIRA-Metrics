@@ -86,7 +86,6 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
     // Convert to array and sort by earliest timestamp in each group
     return Array.from(groups.entries()).map(([requestId, interactions]) => {
       const sortedInteractions = interactions.sort((a, b) => a.timestamp - b.timestamp);
-      debugger
       const userPrompt = sortedInteractions.find(i => i.request_type === 'user_prompt')?.request_content;
       
       // Calculate token totals for this request
