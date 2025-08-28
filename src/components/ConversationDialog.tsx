@@ -192,12 +192,14 @@ export function ConversationDialog({ session, isOpen, onClose }: ConversationDia
     for (let i = currentRequestIndex + 1; i <= requestGroups.length; i++) {
       debugger
       const nextGroup = requestGroups[i];
+      if(nextGroup){
       const toolResult = nextGroup.interactions.find(interaction => 
         interaction.request_type === 'tool_result' && 
         interaction.request_tool_id === toolId
       );
       if (toolResult) {
         return toolResult.request_content;
+      }
       }
     }
     return null;
